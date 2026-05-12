@@ -25,7 +25,7 @@ To run `GitVibe` from any repository:
 ---
 
 ## 🎮 Keybindings
-
+sdsds
 | Key | Action |
 | :--- | :--- |
 | `Tab` | Switch between **Staging** and **Branching** views |
