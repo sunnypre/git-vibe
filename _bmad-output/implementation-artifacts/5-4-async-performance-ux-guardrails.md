@@ -1,4 +1,4 @@
----
+asdasd---
 title: 'Story 5.4: Async Performance & UX Guardrails - Background Operations'
 type: 'refactor'
 created: '2026-05-18'

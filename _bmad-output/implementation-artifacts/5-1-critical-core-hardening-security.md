@@ -11,7 +11,7 @@ So that the application is secure against command injection and handles complex 
 - **And** the "git " prefix truncation logic is made safe and non-hardcoded.
 - **And** `GitService.UnstageAsync` handles HEAD-less states safely without blind fallbacks.
 
-## Tasks
+## Tasksasdasdsa
 - [ ] Implement robust argument parsing in `GitService.RunRawAsync`.
 - [ ] Sanitize input in `MainLoop.cs` to prevent command injection.
 - [ ] Refactor "git " prefix truncation to be safe.
