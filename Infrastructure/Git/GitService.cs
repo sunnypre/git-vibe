@@ -10,16 +10,27 @@ public interface IGitService
     Task<List<GitBranch>> GetBranchesAsync(CancellationToken ct = default);
     Task<GitResult> StageAsync(string path, CancellationToken ct = default);
     Task<GitResult> UnstageAsync(string path, CancellationToken ct = default);
+    Task<GitResult> UnstageAllAsync(CancellationToken ct = default);
     Task<GitResult> CommitAsync(string message, CancellationToken ct = default);
     Task<bool> HasRemoteTrackingBranchAsync(CancellationToken ct = default);
     Task<GitResult> PushAsync(CancellationToken ct = default);
     Task<GitResult> RunRawAsync(string command, CancellationToken ct = default);
     Task<GitResult> CheckoutBranchAsync(string branchName, CancellationToken ct = default);
     Task<GitResult> CreateBranchAsync(string branchName, CancellationToken ct = default);
+    Task<string> GetDiffAsync(string path, bool staged, CancellationToken ct = default);
     }
 
     public class GitService(IGitProcess gitProcess) : IGitService
     {
+    public async Task<string> GetDiffAsync(string path, bool staged, CancellationToken ct = default)
+    {
+        var args = staged
+            ? new[] { "diff", "--cached", "--color=never", "--", path }
+            : new[] { "diff", "--color=never", "--", path };
+
+        var result = await gitProcess.RunAsync(ct, args);
+        return result.Success ? result.Output : $"Error fetching diff: {result.Error}";
+    }
     public async Task<bool> IsGitRepositoryAsync(CancellationToken ct = default)
     {
         var result = await gitProcess.RunAsync(ct, "rev-parse", "--is-inside-work-tree");
@@ -75,6 +86,11 @@ public interface IGitService
             // If no HEAD, we use 'rm --cached' to unstage
             return await gitProcess.RunAsync(ct, "rm", "--cached", "--", path);
         }
+    }
+
+    public async Task<GitResult> UnstageAllAsync(CancellationToken ct = default)
+    {
+        return await gitProcess.RunAsync(ct, "reset");
     }
 
     public async Task<GitResult> CommitAsync(string message, CancellationToken ct = default)

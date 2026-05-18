@@ -235,4 +235,43 @@ public class GitServiceTests
         Assert.Equal("-b", mockProcess.LastArguments[1]);
         Assert.Equal(branch, mockProcess.LastArguments[2]);
     }
+
+    [Fact]
+    public async Task GetDiffAsync_ShouldCallGitDiff_WhenNotStaged()
+    {
+        // Arrange
+        var mockProcess = new MockGitProcess();
+        var service = new GitService(mockProcess);
+        var path = "test.txt";
+
+        // Act
+        await service.GetDiffAsync(path, false);
+
+        // Assert
+        Assert.NotNull(mockProcess.LastArguments);
+        Assert.Equal("diff", mockProcess.LastArguments[0]);
+        Assert.Equal("--color=never", mockProcess.LastArguments[1]);
+        Assert.Equal("--", mockProcess.LastArguments[2]);
+        Assert.Equal(path, mockProcess.LastArguments[3]);
+    }
+
+    [Fact]
+    public async Task GetDiffAsync_ShouldCallGitDiffCached_WhenStaged()
+    {
+        // Arrange
+        var mockProcess = new MockGitProcess();
+        var service = new GitService(mockProcess);
+        var path = "test.txt";
+
+        // Act
+        await service.GetDiffAsync(path, true);
+
+        // Assert
+        Assert.NotNull(mockProcess.LastArguments);
+        Assert.Equal("diff", mockProcess.LastArguments[0]);
+        Assert.Equal("--cached", mockProcess.LastArguments[1]);
+        Assert.Equal("--color=never", mockProcess.LastArguments[2]);
+        Assert.Equal("--", mockProcess.LastArguments[3]);
+        Assert.Equal(path, mockProcess.LastArguments[4]);
+    }
 }

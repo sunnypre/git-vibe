@@ -18,6 +18,7 @@ public record GitFile(string Path, string? OriginalPath, GitStatus StagedStatus,
     public bool IsStaged => StagedStatus != GitStatus.Unmodified && StagedStatus != GitStatus.Untracked;
     public bool IsUnstaged => UnstagedStatus != GitStatus.Unmodified;
     public bool IsUntracked => StagedStatus == GitStatus.Untracked || UnstagedStatus == GitStatus.Untracked;
+    public bool IsPartiallyStaged => IsStaged && IsUnstaged;
 
     public static GitFile FromPorcelain(string line)
     {

@@ -47,22 +47,54 @@ public class StagingViewTests
     }
 
     [Fact]
-    public void Render_ShouldShowFocusPointer()
+    public void Render_WithScrollOffset_ShouldSkipItems()
     {
         // Arrange
         var console = new TestConsole();
         var files = new List<StagingViewItem>
         {
-            new StagingViewItem(new GitFile("File1.cs", null, GitStatus.Unmodified, GitStatus.Modified), false),
-            new StagingViewItem(new GitFile("File2.cs", null, GitStatus.Unmodified, GitStatus.Modified), false)
+            new StagingViewItem(new GitFile("File1.cs", null, GitStatus.Modified, GitStatus.Unmodified), true),
+            new StagingViewItem(new GitFile("File2.cs", null, GitStatus.Modified, GitStatus.Unmodified), true),
+            new StagingViewItem(new GitFile("File3.cs", null, GitStatus.Modified, GitStatus.Unmodified), true)
         };
-        // Focus on second file
-        var view = new StagingView(files, 1);
+        // Scroll offset 1 should skip "File1.cs"
+        var view = new StagingView(files, scrollOffset: 1, pageSize: 2);
 
         // Act
         console.Write(view);
 
         // Assert
-        Assert.Contains(">", console.Output);
+        Assert.DoesNotContain("File1.cs", console.Output);
+        Assert.Contains("File2.cs", console.Output);
+        Assert.Contains("File3.cs", console.Output);
+    }
+
+    [Fact]
+    public void GetSelectedRowIndex_ShouldBeIndexItself()
+    {
+        // Arrange
+        var files = new List<StagingViewItem>
+        {
+            new StagingViewItem(new GitFile("Staged1.cs", null, GitStatus.Modified, GitStatus.Unmodified), true),
+            new StagingViewItem(new GitFile("Unstaged1.cs", null, GitStatus.Unmodified, GitStatus.Modified), false)
+        };
+
+        // Act & Assert
+        Assert.Equal(0, StagingView.GetSelectedRowIndex(files, 0));
+        Assert.Equal(1, StagingView.GetSelectedRowIndex(files, 1));
+    }
+
+    [Fact]
+    public void GetTotalRows_ShouldReturnCorrectCount()
+    {
+        // Arrange
+        var files = new List<StagingViewItem>
+        {
+            new StagingViewItem(new GitFile("Staged1.cs", null, GitStatus.Modified, GitStatus.Unmodified), true),
+            new StagingViewItem(new GitFile("Unstaged1.cs", null, GitStatus.Unmodified, GitStatus.Modified), false)
+        };
+
+        // Act & Assert
+        Assert.Equal(2, StagingView.GetTotalRows(files));
     }
 }

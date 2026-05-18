@@ -1,6 +1,6 @@
 # Story 3.3: Inline Diff Explorer
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -40,16 +40,36 @@ This story implements a critical review feature. The diff explorer should feel l
 
 ## Tasks / Subtasks
 
-- [ ] Service: Implement `GetDiffAsync` in `GitService.cs`
-- [ ] UI: Create `Features/Staging/DiffView.cs`
-  - [ ] Implement line-by-line coloring for diff output.
-  - [ ] Wrap in a Panel with a header showing the filename.
-- [ ] Integration: Update `MainLoop.cs` to show Diff Explorer
-  - [ ] Add `isDiffOverlayActive` and `currentDiffContent` state.
-  - [ ] Trigger on `Enter`/`D` in staging view.
-- [ ] Verification & Testing
-  - [ ] Manual verification with various file changes (additions, deletions, modifications).
+- [x] Service: Implement `GetDiffAsync` in `GitService.cs`
+- [x] UI: Create `Features/Staging/DiffView.cs`
+  - [x] Implement line-by-line coloring for diff output.
+  - [x] Wrap in a Panel with a header showing the filename.
+- [x] Integration: Update `MainLoop.cs` to show Diff Explorer
+  - [x] Add `isDiffOverlayActive` and `currentDiffContent` state.
+  - [x] Trigger on `Enter`/`D` in staging view.
+- [x] Verification & Testing
+  - [x] Manual verification with various file changes (additions, deletions, modifications).
 
-## Dev Notes
-- **Diff Length:** For very long diffs, consider truncating or using a `Canvas` if `Spectre.Console` doesn't automatically handle scrolling in a simple Panel. For MVP, showing the first N lines is acceptable if complexity rises.
-- **Combined Diff:** If a file has both staged and unstaged changes, decide whether to show both or just the one relevant to the current section (Staged vs Unstaged). Showing the one relevant to the cursor position is most intuitive.
+## Dev Agent Record
+
+### Implementation Plan
+1.  **Service Update:** Added `GetDiffAsync` to `IGitService` and `GitService`. It uses `git diff` for unstaged changes and `git diff --cached` for staged changes, ensuring `--color=never` for clean parsing.
+2.  **UI Component:** Created `DiffView.cs` using `Spectre.Console`. Implemented semantic coloring: green for `+` lines, red for `-` lines, cyan for hunk headers (`@@`), and grey for git metadata.
+3.  **Main Loop Integration:** Added state for `isDiffOverlayActive`, `currentDiffContent`, and `diffScrollOffset`. Updated input handling to trigger the diff view on `Enter` or `D` in Staging View. Implemented basic vertical scrolling using `UpArrow`/`DownArrow`.
+
+### Completion Notes
+- **Scrolling:** Basic line-based scrolling is implemented by skipping lines based on `diffScrollOffset`.
+- **Colors:** Verified that additions are green and deletions are red as per AC.
+- **Escape Key:** Esc successfully dismisses the overlay and returns to the file list.
+
+## File List
+- `Infrastructure/Git/GitService.cs`
+- `Features/Staging/DiffView.cs`
+- `Features/Shared/MainLoop.cs`
+- `Tests/GitServiceTests.cs`
+
+## Change Log
+- Add `GetDiffAsync` to Git Service.
+- Implement `DiffView` component with semantic coloring.
+- Integrate Inline Diff Explorer into `MainLoop`.
+- Add unit tests for `GetDiffAsync`.

@@ -326,3 +326,81 @@ So that I can quickly find and stage specific files in a large repository.
 **And** as I type, the file list filters in real-time to show only matching paths
 **And** I can still navigate and toggle the filtered results
 **And** pressing Escape clears the filter and returns to the full list.
+
+## Epic 5: Robustness & UI Polish
+
+Harden the core Git integration and polish the user experience to eliminate bugs and technical debt.
+
+### Story 5.1: Critical Core Hardening & Security
+
+As a developer,
+I want robust command parsing and input validation,
+So that the application is secure against command injection and handles complex file paths correctly.
+
+**Acceptance Criteria:**
+
+**Given** a Git command with spaces or quotes in arguments
+**When** `GitService.RunRawAsync` is called
+**Then** it correctly escapes and preserves arguments.
+**When** multi-line or malformed input is pasted into the command bar
+**Then** it is sanitized to prevent command injection.
+**And** the "git " prefix truncation logic is made safe and non-hardcoded.
+**And** `GitService.UnstageAsync` handles HEAD-less states safely without blind fallbacks.
+
+### Story 5.2: Input & Buffer Reliability
+
+As a user,
+I want my keyboard input to be responsive and clean,
+So that I don't experience input lag or see unprintable characters in my commands.
+
+**Acceptance Criteria:**
+
+**Given** an async operation is in progress
+**When** I press keys during the await
+**Then** the input buffer is properly managed or flushed so that "ghost" keys don't appear later.
+**When** typing in input fields
+**Then** unprintable control characters are filtered out.
+
+### Story 5.3: UI Polish & Hotkey Integrity
+
+As a user,
+I want the UI legend to accurately reflect the available features and my selection to be stable,
+So that the interface feels professional and predictable.
+
+**Acceptance Criteria:**
+
+**Given** the application is in different states (Staging, Branching)
+**When** I look at the status bar legend
+**Then** only functional hotkeys are displayed, and they all work as intended.
+**When** I refresh the view
+**Then** my current selection remains on the same file/item and does not jump unexpectedly.
+
+### Story 5.4: Async Performance & UX Guardrails
+
+As a user,
+I want the UI remain responsive during Git operations and for errors to be handled gracefully,
+So that I never feel the application has crashed or is ignoring my errors.
+
+**Acceptance Criteria:**
+
+**Given** a long-running Git operation
+**When** it is executing in the background
+**Then** the UI shows a "Waiting/Loading" state and does not freeze the main thread.
+**When** multiple errors occur in rapid succession
+**Then** they are queued or correctly displayed without being silently overwritten by polling race conditions.
+**And** the command output overlay only triggers for actual warnings or errors, not standard informational output.
+
+### Story 5.5: Adaptive Layout & Scrollable Components
+
+As a user,
+I want the TUI to adapt to my terminal size and provide scrolling for large lists,
+So that I can use the tool effectively even on smaller screens or in constrained windows.
+
+**Acceptance Criteria:**
+
+**Given** a small terminal window or a large number of files/branches
+**When** the content exceeds the available screen height
+**Then** the Action Pane and Navigation Sidebar provide vertical scrolling.
+**When** the terminal width is constrained
+**Then** the layout adjusts proportions dynamically (e.g., narrowing the sidebar) to keep the Action Pane functional.
+**And** the status bar legend gracefully handles overflow or wraps to avoid being cut off.

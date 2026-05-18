@@ -47,21 +47,24 @@ public class BranchingViewTests
     }
 
     [Fact]
-    public void Render_WithSelection_ShowsPointer()
+    public void Render_WithScrollOffset_ShouldSkipBranches()
     {
         // Arrange
         var console = new TestConsole();
         var branches = new List<GitBranch>
         {
-            new GitBranch("main", true, false, 0, 0),
-            new GitBranch("feature/test", false, false, 0, 0)
+            new GitBranch("branch1", false, false),
+            new GitBranch("branch2", false, false),
+            new GitBranch("branch3", false, false)
         };
-        var view = new BranchingView(branches, 1);
+        var view = new BranchingView(branches, scrollOffset: 1, pageSize: 2);
 
         // Act
         console.Write(view);
 
         // Assert
-        Assert.Contains(">", console.Output);
+        Assert.DoesNotContain("branch1", console.Output);
+        Assert.Contains("branch2", console.Output);
+        Assert.Contains("branch3", console.Output);
     }
 }

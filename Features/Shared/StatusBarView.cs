@@ -12,7 +12,7 @@ public class StatusBarView(string branchName, bool isRefreshing = false) : Rende
             .NoBorder()
             .HideHeaders();
 
-        table.AddColumn("Branch");
+        table.AddColumn("Branch", c => c.NoWrap());
         table.AddColumn("Status", c => c.Centered());
         table.AddColumn("Legend", c => c.RightAligned());
 
@@ -20,10 +20,19 @@ public class StatusBarView(string branchName, bool isRefreshing = false) : Rende
             ? (IRenderable)new Markup("[yellow]Refreshing...[/]") 
             : Text.Empty;
 
+        var legend = maxWidth < 80
+            ? "[blue]Spc[/] [white]Tgl[/] [blue]C[/] [white]Cmt[/] [blue]B[/] [white]Br[/] [blue]R[/] [white]Ref[/] [blue]Esc[/] [white]Ext[/]"
+            : "[blue]Space[/] [white]Toggle[/] [blue]C[/] [white]Commit[/] [blue]B[/] [white]Branch[/] [blue]R[/] [white]Refresh[/] [blue]Esc[/] [white]Exit[/]";
+
+        if (maxWidth < 50)
+        {
+            legend = "[blue]C[/] [white]Cmt[/] [blue]B[/] [white]Br[/] [blue]Esc[/]";
+        }
+
         table.AddRow(
-            new Markup($"[blue]On branch:[/] [white bold]{Markup.Escape(branchName)}[/]"),
+            new Markup($"[blue]On:[/] [white bold]{Markup.Escape(branchName)}[/]"),
             refreshIndicator,
-            new Markup("[blue]Space[/] [white]Toggle[/] [blue]C[/] [white]Commit[/] [blue]B[/] [white]Branch[/] [blue]R[/] [white]Refresh[/] [blue]Esc[/] [white]Exit[/]")
+            new Markup(legend)
         );
 
         return ((IRenderable)table).Render(options, maxWidth);
