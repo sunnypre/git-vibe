@@ -52,4 +52,19 @@ public class StatusBarViewTests
         // Assert
         Assert.Contains("Refreshing...", console.Output);
     }
+
+    [Fact]
+    public void Render_ShouldShowSpinnerInRefreshingIndicator()
+    {
+        // Arrange
+        var console = new TestConsole();
+        var view = new StatusBarView("main", isRefreshing: true, spinnerIndex: 0);
+
+        // Act
+        console.Write(view);
+
+        // Assert
+        Assert.Contains("⠋", console.Output);
+        Assert.Contains("Refreshing...", console.Output);
+    }
 }

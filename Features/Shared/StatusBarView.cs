@@ -3,8 +3,10 @@ using Spectre.Console.Rendering;
 
 namespace GitVibe.Features.Shared;
 
-public class StatusBarView(string branchName, bool isRefreshing = false) : Renderable
+public class StatusBarView(string branchName, bool isRefreshing = false, int spinnerIndex = 0) : Renderable
 {
+    private static readonly string[] SpinnerFrames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+
     protected override IEnumerable<Segment> Render(RenderOptions options, int maxWidth)
     {
         var table = new Table()
@@ -16,8 +18,9 @@ public class StatusBarView(string branchName, bool isRefreshing = false) : Rende
         table.AddColumn("Status", c => c.Centered());
         table.AddColumn("Legend", c => c.RightAligned());
 
+        var frame = SpinnerFrames[spinnerIndex % SpinnerFrames.Length];
         var refreshIndicator = isRefreshing 
-            ? (IRenderable)new Markup("[yellow]Refreshing...[/]") 
+            ? (IRenderable)new Markup($"[yellow]{frame} Refreshing...[/]") 
             : Text.Empty;
 
         var legend = maxWidth < 80
