@@ -11,4 +11,5 @@ So that the interface feels professional and predictable.
 
 ## Tasks
 - [ ] Audit and update `StatusBarView.cs` legend for all views.
-- [ ] Fix selection jump logic in `MainLoop.cs` during refresh.
+- [ ] Fix selection jump logasdic in `MainLoop.cs` during refresh.
+asdasda

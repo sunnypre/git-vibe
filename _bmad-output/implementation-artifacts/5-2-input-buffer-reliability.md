@@ -9,6 +9,6 @@ So that I don't experience input lag or see unprintable characters in my command
 - **Given** an async operation is in progress, **When** I press keys during the await, **Then** the input buffer is properly managed or flushed so that "ghost" keys don't appear later.
 - **When** typing in input fields, **Then** unprintable control characters are filtered out.
 
-## Tasks
+## Tasksasasd
 - [ ] Manage `Console.KeyAvailable` buffer during async operations in `MainLoop.cs`.
 - [ ] Filter unprintable control characters in input handling.

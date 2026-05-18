@@ -26,6 +26,7 @@ public class MainLoop(
     private int _isBackgroundLoading = 0;
     private int _spinnerIndex = 0;
     private readonly object _stateLock = new();
+    private readonly SemaphoreSlim _redrawSignal = new(0);
     
     private string _branch = "Unknown";
     private List<GitFile> _files = [];
@@ -311,6 +312,7 @@ public class MainLoop(
                                                         {
                                                             isPushPromptActive = true;
                                                             lock (_stateLock) { _needsRedraw = true; }
+                                                            _redrawSignal.Release();
                                                         }
                                                     });
                                                 commitMessage = string.Empty;
@@ -347,6 +349,7 @@ public class MainLoop(
                                                     lastCommandResult = r;
                                                     if (!r.Success || !string.IsNullOrWhiteSpace(r.Output)) isOutputOverlayActive = true;
                                                     lock (_stateLock) { _needsRedraw = true; }
+                                                    _redrawSignal.Release();
                                                 });
                                             rawCommand = "git ";
                                             break;
@@ -370,6 +373,7 @@ public class MainLoop(
                                                     onSuccess: async r => {
                                                         isUpstreamPromptActive = true;
                                                         lock (_stateLock) { _needsRedraw = true; }
+                                                        _redrawSignal.Release();
                                                     });
                                                 branchNameInput = string.Empty;
                                             }
@@ -395,30 +399,27 @@ public class MainLoop(
                                 }
                                 else if (isSearchOverlayActive)
                                 {
+                                    bool searchKeyHandled = true;
                                     switch (key.Key)
                                     {
                                         case ConsoleKey.Escape: isSearchOverlayActive = false; searchQuery = string.Empty; break;
                                         case ConsoleKey.Enter: isSearchOverlayActive = false; break;
                                         case ConsoleKey.Backspace: if (searchQuery.Length > 0) searchQuery = searchQuery[..^1]; break;
                                         case ConsoleKey.UpArrow:
-                                            if (currentView == View.Staging && viewItems.Count > 0) { selectedIndex = Math.Max(0, selectedIndex - 1); selectedPath = viewItems[selectedIndex].File.Path; }
-                                            break;
                                         case ConsoleKey.DownArrow:
-                                            if (currentView == View.Staging && viewItems.Count > 0) { selectedIndex = Math.Min(viewItems.Count - 1, selectedIndex + 1); selectedPath = viewItems[selectedIndex].File.Path; }
-                                            break;
+                                        case ConsoleKey.PageUp:
+                                        case ConsoleKey.PageDown:
                                         case ConsoleKey.Spacebar:
-                                            if (currentView == View.Staging && viewItems.Count > 0)
-                                            {
-                                                var item = viewItems[selectedIndex];
-                                                RunBackgroundGitTask(
-                                                    async t => item.IsStagedSection ? await gitService.UnstageAsync(item.File.Path, t) : await gitService.StageAsync(item.File.Path, t),
-                                                    "Toggle Stage");
-                                            }
+                                            searchKeyHandled = false; // Fall through to common navigation logic
                                             break;
-                                        default: if (key.KeyChar >= 32 && key.KeyChar != '/') searchQuery += key.KeyChar; break;
+                                        default:
+                                            if (key.KeyChar >= 32 && key.KeyChar != '/') searchQuery += key.KeyChar;
+                                            break;
                                     }
+                                    if (searchKeyHandled) continue;
                                 }
-                                else if (isOutputOverlayActive)
+                                
+                                if (isOutputOverlayActive)
                                 {
                                     isOutputOverlayActive = false;
                                     lastCommandResult = null;
@@ -463,9 +464,20 @@ public class MainLoop(
                                             {
                                                 var item = viewItems[selectedIndex];
                                                 diffFilename = item.File.Path;
-                                                currentDiffContent = await gitService.GetDiffAsync(diffFilename, item.IsStagedSection, ct);
-                                                isDiffOverlayActive = true;
-                                                diffScrollOffset = 0;
+                                                RunBackgroundGitTask(
+                                                    async t => {
+                                                        var diff = await gitService.GetDiffAsync(diffFilename, item.IsStagedSection, t);
+                                                        return new GitResult(0, diff, "");
+                                                    },
+                                                    "Fetch Diff",
+                                                    triggerRefresh: false,
+                                                    onSuccess: async r => {
+                                                        currentDiffContent = r.Output;
+                                                        isDiffOverlayActive = true;
+                                                        diffScrollOffset = 0;
+                                                        lock (_stateLock) { _needsRedraw = true; }
+                                                        _redrawSignal.Release();
+                                                    });
                                             }
                                             else if (key.Key == ConsoleKey.Enter && currentView == View.Branching && currentBranches.Count > 0)
                                             {
@@ -532,7 +544,12 @@ public class MainLoop(
                         }
                         else
                         {
-                            await Task.Delay(50, ct);
+                            await Task.WhenAny(Task.Delay(50, ct), _redrawSignal.WaitAsync(ct));
+                            // Drain the semaphore to prevent piling up redraws
+                            while (_redrawSignal.CurrentCount > 0)
+                            {
+                                await _redrawSignal.WaitAsync(ct);
+                            }
                         }
                     }
                 });
@@ -559,6 +576,7 @@ public class MainLoop(
                 _errorDisplayUntil = DateTime.Now.AddSeconds(2);
                 _needsRedraw = true;
             }
+            _redrawSignal.Release();
             return;
         }
 
@@ -588,6 +606,7 @@ public class MainLoop(
                         _errorDisplayUntil = DateTime.Now.AddSeconds(5);
                         _needsRedraw = true;
                     }
+                    _redrawSignal.Release();
                 }
             }
             catch (Exception ex)
@@ -599,6 +618,7 @@ public class MainLoop(
                     _errorDisplayUntil = DateTime.Now.AddSeconds(5);
                     _needsRedraw = true;
                 }
+                _redrawSignal.Release();
             }
             finally
             {
@@ -607,6 +627,7 @@ public class MainLoop(
                 {
                     _needsRedraw = true;
                 }
+                _redrawSignal.Release();
             }
         });
     }
@@ -626,6 +647,7 @@ public class MainLoop(
                 _branches = nextBranches;
                 _needsRedraw = true;
             }
+            _redrawSignal.Release();
         }
         catch (Exception ex)
         {
@@ -636,6 +658,7 @@ public class MainLoop(
                 _errorDisplayUntil = DateTime.Now.AddSeconds(3);
                 _needsRedraw = true;
             }
+            _redrawSignal.Release();
         }
     }
 
