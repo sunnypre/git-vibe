@@ -90,12 +90,17 @@ public class MainLoop(
             var diffScrollOffset = 0;
             var stagingScrollOffset = 0;
             var branchingScrollOffset = 0;
+            var selectedIndex = 0;
             GitResult? lastCommandResult = null;
             string? errorMessage = null;
             DateTime? errorDisplayUntil = null;
             
             var branchSelectedIndex = 0;
             var needsRedraw = true;
+
+            List<StagingViewItem> cachedViewItems = [];
+            string? lastSearchQuery = null;
+            List<GitFile> lastFiles = [];
 
             await AnsiConsole.Live(rootLayout)
                 .AutoClear(false)
@@ -140,24 +145,44 @@ public class MainLoop(
                             needsRedraw = true;
                         }
 
-                        // Unified list for Staging View
-                        var viewItems = files
-                            .Select(f => new StagingViewItem(f, f.IsStaged))
-                            .OrderBy(i => i.File.Path)
-                            .ToList();
-
-                        if (!string.IsNullOrEmpty(searchQuery))
+                        // Unified list for Staging View - only recalculate if needed
+                        if (!ReferenceEquals(files, lastFiles) || searchQuery != lastSearchQuery)
                         {
-                            viewItems = viewItems.Where(i => i.File.Path.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)).ToList();
+                            cachedViewItems = files
+                                .Select(f => new StagingViewItem(f, f.IsStaged))
+                                .OrderBy(i => i.File.Path, StringComparer.OrdinalIgnoreCase)
+                                .ToList();
+
+                            if (!string.IsNullOrEmpty(searchQuery))
+                            {
+                                cachedViewItems = cachedViewItems.Where(i => i.File.Path.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)).ToList();
+                            }
+
+                            lastFiles = files;
+                            lastSearchQuery = searchQuery;
+
+                            // Update selection only on change
+                            var foundIndex = cachedViewItems.FindIndex(i => i.File.Path == selectedPath);
+                            if (foundIndex != -1)
+                            {
+                                selectedIndex = foundIndex;
+                            }
+                            else
+                            {
+                                selectedIndex = Math.Clamp(selectedIndex, 0, Math.Max(0, cachedViewItems.Count - 1));
+                            }
+
+                            if (cachedViewItems.Count > 0)
+                            {
+                                selectedPath = cachedViewItems[selectedIndex].File.Path;
+                            }
                         }
 
-                        var selectedIndex = viewItems.FindIndex(i => i.File.Path == selectedPath);
-                        if (selectedIndex == -1) selectedIndex = 0;
-                        if (viewItems.Count > 0) selectedPath = viewItems[selectedIndex].File.Path;
+                        var viewItems = cachedViewItems;
 
                         if (branchSelectedIndex >= branches.Count) branchSelectedIndex = Math.Max(0, branches.Count - 1);
 
-                        // Auto-scroll logic
+                        // Auto-scroll logic (always keep in sync with selection)
                         if (currentView == View.Staging && viewItems.Count > 0)
                         {
                             var selectedRow = StagingView.GetSelectedRowIndex(viewItems, selectedIndex);
@@ -353,7 +378,6 @@ public class MainLoop(
                                         case ConsoleKey.Y:
                                             isUpstreamPromptActive = false;
                                             isRefreshing = true;
-                                            // AC 7: Detect and set upstream. Using RunRaw for MVP upstream setting.
                                             await gitService.RunRawAsync("git push -u origin HEAD", ct);
                                             break;
                                         case ConsoleKey.N:
@@ -446,14 +470,35 @@ public class MainLoop(
                                             }
                                             break;
                                         case ConsoleKey.A:
-                                            if (currentView == View.Staging && viewItems.Count > 0)
-                                            {
-                                                isRefreshing = true;
-                                                bool anyUnstaged = files.Any(f => f.IsUnstaged || f.IsUntracked);
-                                                GitResult result = anyUnstaged ? await gitService.RunRawAsync("add -A", ct) : await gitService.UnstageAllAsync(ct);
-                                                if (!result.Success) { errorMessage = result.Error; errorDisplayUntil = DateTime.Now.AddSeconds(5); isRefreshing = false; }
-                                            }
-                                            break;
+                                           if (currentView == View.Staging && viewItems.Count > 0)
+                                           {
+                                               isRefreshing = true;
+                                               GitResult result;
+
+                                               if (string.IsNullOrEmpty(searchQuery))
+                                               {
+                                                   bool anyUnstaged = files.Any(f => f.IsUnstaged || f.IsUntracked);
+                                                   result = anyUnstaged ? await gitService.RunRawAsync("add -A", ct) : await gitService.UnstageAllAsync(ct);
+                                               }
+                                               else
+                                               {
+                                                   bool anyVisibleUnstaged = viewItems.Any(i => i.File.IsUnstaged || i.File.IsUntracked);
+                                                   if (anyVisibleUnstaged)
+                                                   {
+                                                       var paths = viewItems.Where(i => i.File.IsUnstaged || i.File.IsUntracked).Select(i => i.File.Path).ToList();
+                                                       result = await gitService.RunRawAsync($"add -- {string.Join(" ", paths.Select(p => $"\"{p}\""))}", ct);
+                                                   }
+                                                   else
+                                                   {
+                                                       var paths = viewItems.Where(i => i.File.IsStaged).Select(i => i.File.Path).ToList();
+                                                       result = await gitService.RunRawAsync($"reset HEAD -- {string.Join(" ", paths.Select(p => $"\"{p}\""))}", ct);
+                                                   }
+                                               }
+
+                                               if (!result.Success) { errorMessage = result.Error; errorDisplayUntil = DateTime.Now.AddSeconds(5); isRefreshing = false; }
+                                           }
+                                           break;
+
                                         case ConsoleKey.B:
                                             if (currentView == View.Branching) { isBranchCreationOverlayActive = true; branchNameInput = string.Empty; }
                                             break;
@@ -484,12 +529,11 @@ public class MainLoop(
                                     }
                                 }
 
-                                if (isRefreshing) break; // Break out of key draining if a refresh is triggered
+                                if (isRefreshing) break;
                             }
                         }
                         else
                         {
-                            // Trigger redraw if error message timed out
                             if (errorDisplayUntil.HasValue && DateTime.Now > errorDisplayUntil.Value)
                             {
                                 needsRedraw = true;

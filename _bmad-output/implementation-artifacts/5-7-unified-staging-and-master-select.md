@@ -2,7 +2,7 @@
 title: 'Story 5.7: Unified Staging View & Master Select'
 type: 'bugfix'
 created: '2026-05-18'
-status: 'in-progress'
+status: 'done'
 baseline_commit: '61dfe938106e4ada1786c042c88cdbe7b551dfaf'
 context: ['_bmad-output/implementation-artifacts/epic-5-context.md']
 ---
@@ -71,3 +71,31 @@ context: ['_bmad-output/implementation-artifacts/epic-5-context.md']
 **Manual checks:**
 - Verify that toggling a file doesn't cause the cursor to jump or the list to reorder unexpectedly.
 - Verify 'A' stages all files, including untracked ones.
+
+## Suggested Review Order
+
+**Core Logic & Performance**
+
+- Recalculate view items only when files or search query changes to save CPU.
+  [`MainLoop.cs:146`](../../Features/Shared/MainLoop.cs#L146)
+
+- Selection persistence logic ensuring the cursor stays on the same file path after refresh.
+  [`MainLoop.cs:161`](../../Features/Shared/MainLoop.cs#L161)
+
+**Sorting & Hotkeys**
+
+- Stable case-insensitive sorting by path to prevent selection jumping.
+  [`MainLoop.cs:149`](../../Features/Shared/MainLoop.cs#L149)
+
+- Master Select hotkey 'A' with contextual awareness for active search filters.
+  [`MainLoop.cs:473`](../../Features/Shared/MainLoop.cs#L473)
+
+**UI & Readability**
+
+- Selection highlight refined to exclude the checkbox column for better readability.
+  [`StagingView.cs:65`](../../Features/Staging/StagingView.cs#L65)
+
+**Tests**
+
+- Updated unit tests to match the unified view layout and fixed row indexing.
+  [`StagingViewTests.cs:50`](../../Tests/StagingViewTests.cs#L50)
