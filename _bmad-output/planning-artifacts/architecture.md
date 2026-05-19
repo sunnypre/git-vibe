@@ -59,10 +59,10 @@ Performance is paramount, with strict targets for tab switching (<100ms) and UI 
 
 Desktop Application (Electron) based on project requirements analysis.
 
-### Selected Starter: `electron-vite` (Official CLI) + Material UI v6
+### Selected Starter: `electron-vite` (Official CLI) + shadcn/ui
 
 **Rationale for Selection:**
-We will use the official `electron-vite` tool for the robust platform foundation (Main/Renderer separation and fast build times). Instead of the Shadcn/Radix components from the Figma sketch, we will implement the layout using **Material UI (MUI) v6**. This provides a more comprehensive, pre-styled component library that is industry-standard for enterprise-grade tools, while still giving us the flexibility to achieve the specific multi-pane layout from your design.
+We will use the official `electron-vite` tool for the robust platform foundation (Main/Renderer separation and fast build times). We will implement the layout using **shadcn/ui** (built on Radix UI and Tailwind CSS v4). This aligns perfectly with the Figma design scaffold provided and provides the "High-Velocity Surgical Interface" required by the PRD. Shadcn's "copy-and-paste" model allows for ultimate customization of the TUI-like components while maintaining top-tier accessibility.
 
 **Initialization Command:**
 
@@ -70,9 +70,10 @@ We will use the official `electron-vite` tool for the robust platform foundation
 # 1. Scaffold the Electron+React+TS foundation
 npm create @quick-start/electron@latest git-vibe-desktop -- --template react-ts
 
-# 2. Install Material UI v6 and dependencies
+# 2. Install Tailwind CSS v4 and shadcn/ui dependencies
 cd git-vibe-desktop
-npm install @mui/material @emotion/react @emotion/styled @mui/icons-material @fontsource/roboto
+npm install tailwindcss @tailwindcss/vite lucide-react clsx tailwind-merge
+npx shadcn-ui@latest init
 ```
 
 **Architectural Decisions Provided by Starter:**
@@ -81,8 +82,9 @@ npm install @mui/material @emotion/react @emotion/styled @mui/icons-material @fo
 - TypeScript 5+ for strict typing across processes.
 
 **UI Component Library:**
-- **Material UI (MUI) v6:** Primary library for buttons, tabs, inputs, and layouts.
-- **Theming:** We will use MUI's `ThemeProvider` to define a "GitVibe Dark Theme" (using the colors from your design).
+- **shadcn/ui (Radix UI):** Primary library for tabs, resizable panels, buttons, and inputs.
+- **Tailwind CSS v4:** For all styling, utilizing the CSS variables from the design tokens.
+- **Theming:** We will use Tailwind's CSS variable-based theming (as seen in `new-design/src/styles/theme.css`) to define the "GitVibe Dark Theme".
 
 **Build & Infrastructure:**
 - **Vite:** For near-instant UI updates during development.
@@ -90,7 +92,7 @@ npm install @mui/material @emotion/react @emotion/styled @mui/icons-material @fo
 
 **Code Organization:**
 - `src/main/`: Native Git logic (using Node.js `child_process`).
-- `src/renderer/`: React frontend with MUI components.
+- `src/renderer/`: React frontend with shadcn/ui components.
 - `src/preload/`: Safe IPC bridge.
 
 ## Core Architectural Decisions
@@ -104,7 +106,7 @@ npm install @mui/material @emotion/react @emotion/styled @mui/icons-material @fo
 
 **Important Decisions (Shape Architecture):**
 - **Terminal Emulation:** `xterm.js` + `node-pty` (in Main process).
-- **UI Framework:** Material UI (MUI) v6 with a centralized Dark Theme.
+- **UI Framework:** shadcn/ui (Radix UI + Tailwind CSS v4) with CSS variable-based theming.
 
 **Deferred Decisions (Post-MVP):**
 - **Packaging/Distribution:** Final installer configurations for Windows/Mac.
@@ -146,6 +148,7 @@ npm install @mui/material @emotion/react @emotion/styled @mui/icons-material @fo
 
 **File Structure Patterns:**
 - **Feature-Based UI:** React components should be grouped by feature rather than type (e.g., `src/renderer/src/features/Staging/`).
+- **shadcn/ui Components:** Reusable primitive components should live in `src/renderer/src/components/ui/`.
 - **Centralized Types:** Shared interfaces between Main and Renderer MUST live in a shared directory (e.g., `src/shared/types/`).
 
 ### Format Patterns
@@ -173,7 +176,7 @@ npm install @mui/material @emotion/react @emotion/styled @mui/icons-material @fo
 **All AI Agents MUST:**
 - Use the typed `window.api` for IPC calls; never use raw `ipcRenderer.invoke`.
 - Never bypass the `GitExecutor` when interacting with the file system.
-- Ensure all React components use MUI v6 components or styled native elements that follow the theme variables.
+- Ensure all React components use shadcn/ui (Radix) components or styled native elements that follow the theme variables.
 
 ## Project Structure & Boundaries
 
@@ -214,7 +217,9 @@ git-vibe/
 │       │   ├── App.tsx      # Main Layout orchestrator
 │       │   ├── store/       # Zustand State
 │       │   │   └── useGitStore.ts # Multi-repo slice logic
-│       │   ├── features/    # UI Components
+│       │   ├── components/  # General UI Components
+│       │   │   └── ui/      # shadcn/ui components (Radix + Tailwind)
+│       │   ├── features/    # UI Features
 │       │   │   ├── Staging/
 │       │   │   │   ├── FileList.tsx
 │       │   │   │   └── DiffViewer.tsx
@@ -224,8 +229,8 @@ git-vibe/
 │       │   │   └── Core/
 │       │   │       ├── RepoTabs.tsx
 │       │   │       └── StatusBar.tsx
-│       │   ├── theme/       # MUI v6 Configuration
-│       │   │   └── vibeTheme.ts
+│       │   ├── theme/       # Tailwind v4 Configuration & CSS variables
+│       │   │   └── vibeTheme.css
 │       │   └── assets/      # Icons, Fonts
 ```
 
@@ -245,7 +250,7 @@ The **Main Process** (`src/main/services/GitExecutor.ts`) acts as the single ent
 ### Coherence Validation ✅
 
 **Decision Compatibility:**
-The Electron-Vite starter ensures compatibility between React 18, Vite, and the Electron main process. The decision to use native `child_process` over `simple-git` is fully compatible with Electron's Node integration.
+The Electron-Vite starter ensures compatibility between React 18, Vite, and the Electron main process. The decision to use shadcn/ui (Radix UI + Tailwind) is fully compatible with the Figma scaffold and modern React development.
 
 **Pattern Consistency:**
 The "Optimistic Transaction" state pattern using Zustand aligns perfectly with the "Serial Command Queue" in the Main process, preventing UI blocking while ensuring data integrity.
@@ -256,8 +261,8 @@ The strict separation of `src/main/`, `src/preload/`, and `src/renderer/` enforc
 ### Requirements Coverage Validation ✅
 
 **Functional Requirements Coverage:**
-- **FR1-FR4 (Tabs):** Supported by Zustand's multi-repo slice architecture.
-- **FR5-FR8 (Staging/Diff):** Supported by the React/MUI components and Optimistic UI updates.
+- **FR1-FR4 (Tabs):** Supported by Zustand's multi-repo slice architecture and shadcn Tabs.
+- **FR5-FR8 (Staging/Diff):** Supported by React/Radix components and Optimistic UI updates.
 - **FR9-FR11 (Workspace/Terminal):** Supported by `react-resizable-panels` and the `xterm.js` integration in the Main process.
 
 **Non-Functional Requirements Coverage:**
@@ -267,7 +272,7 @@ The strict separation of `src/main/`, `src/preload/`, and `src/renderer/` enforc
 ### Implementation Readiness Validation ✅
 
 **Decision Completeness:**
-All critical tools (`electron-vite`, React 18, Zustand v5, MUI v6, xterm.js) are explicitly selected and their architectural roles are defined.
+All critical tools (`electron-vite`, React 18, Zustand v5, shadcn/ui, xterm.js) are explicitly selected and their architectural roles are defined.
 
 **Structure Completeness:**
 A comprehensive directory tree, right down to the `GitExecutor.ts` singleton and the specific UI feature folders, has been mapped out.
@@ -312,7 +317,7 @@ A comprehensive directory tree, right down to the `GitExecutor.ts` singleton and
 **Key Strengths:**
 - **Rock-Solid Foundation:** Relying on the official `electron-vite` CLI guarantees a correct IPC/Build setup.
 - **Snappy UX:** The "Optimistic Command Queue" pattern guarantees the UI never blocks while Git operations run.
-- **Clean Tooling:** Avoiding `simple-git` gives us ultimate control over process streams and error handling.
+- **Clean Tooling:** shadcn/ui provides maximum flexibility for the surgical staging interface without the overhead of heavy component libraries.
 
 ### Implementation Handoff
 
@@ -323,4 +328,4 @@ A comprehensive directory tree, right down to the `GitExecutor.ts` singleton and
 - Refer to this document for all architectural questions.
 
 **First Implementation Priority:**
-Run the `npm create @quick-start/electron@latest` scaffolding command, install MUI, and merge the Figma React prototype into the `src/renderer/` folder.
+Run the `npm create @quick-start/electron@latest` scaffolding command, install Tailwind/shadcn, and merge the Figma React prototype into the `src/renderer/` folder.
