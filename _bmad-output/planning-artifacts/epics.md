@@ -1,328 +1,271 @@
 ---
 stepsCompleted:
-  - 1
-  - 2
-  - 3
-  - 4
-workflowType: 'epics-and-stories'
-lastStep: 4
-status: 'complete'
-completedAt: 'onsdag 6 maj 2026'
+  - step-01-validate-prerequisites
+  - step-02-design-epics
+  - step-03-create-stories
 inputDocuments:
   - _bmad-output/planning-artifacts/prd.md
   - _bmad-output/planning-artifacts/architecture.md
-  - _bmad-output/planning-artifacts/ux-design-specification.md
+  - "@new-design/**"
 ---
 
 # git-vibe - Epic Breakdown
 
 ## Overview
 
-This document provides the complete epic and story breakdown for git-vibe, decomposing the requirements from the PRD, UX Design if it exists, and Architecture requirements into implementable stories.
+This document provides the complete epic and story breakdown for git-vibe, decomposing the requirements from the PRD, the @new-design concept, and Architecture requirements into implementable stories.
 
 ## Requirements Inventory
 
 ### Functional Requirements
 
-FR1: System can detect a valid Git repository upon launch.
-FR2: Users can view a persistent indicator of the current active branch.
-FR3: Users can view real-time Staged, Unstaged, and Untracked status of all files.
-FR4: System can automatically refresh state after any Git operation.
-FR5: Users can navigate the file list using keyboard inputs.
-FR6: Users can toggle individual file staging via Space-bar.
-FR7: Users can bulk stage/unstage by status group.
-FR8: Users can view a side-by-side or inline diff for any selected file.
-FR9: System can display semantic color-coding based on file status (Green/Yellow/Red).
-FR10: Users can view a comprehensive list of local and remote branches.
-FR11: Users can switch to a selected branch via `Enter`.
-FR12: Users can create a new branch via `B` hotkey.
-FR13: System can detect and prompt for upstream tracking on new branches.
-FR14: Users can view "pushed/unpushed" status indicators for all branches.
-FR15: Users can initiate a commit flow via `C` hotkey.
-FR16: Users can provide multi-line commit messages.
-FR17: System can prompt for a remote push after successful commit.
-FR18: Users can execute "raw" Git commands via an integrated command bar.
-FR19: System can display standard output and error from raw command execution.
-FR20: Users can switch between primary views (Files/Branches) via hotkeys.
-FR21: Users can cancel current actions or return to menu via `Escape`.
-FR22: Users can view context-sensitive keyboard shortcut guidance.
+FR1: System can manage multiple Git repository instances simultaneously via tabs.
+FR2: Users can add a new repository by selecting a local folder.
+FR3: Users can close repository tabs independently.
+FR4: System detects and displays the active branch for each tab.
+FR5: Users can view a list of all Staged, Unstaged, and Untracked files.
+FR6: Users can toggle individual staging state via explicit checkboxes or keyboard (Space).
+FR7: Users can view a high-contrast diff of the selected file in a dedicated panel.
+FR8: System provides semantic color-coding (Added, Modified, Deleted).
+FR9: Users can drag and resize the File List, Diff Viewer, and Terminal panels.
+FR10: Users can interact with a functional terminal docked at the bottom of the interface.
+FR11: Terminal state is unique to the active repository tab.
+FR12: Users can initiate a commit with a multi-line message.
+FR13: System prompts for a remote push after a successful commit.
+FR14: System refreshes the UI state automatically after any Git operation.
 
 ### NonFunctional Requirements
 
-NFR1: System shall initialize and display the landing menu in under 200ms.
-NFR2: UI interaction latency shall be sub-50ms for navigation and toggling.
-NFR3: Git status parsing shall complete in under 300ms for repos with 500+ files.
-NFR4: TUI state shall never diverge from the actual Git repository state.
-NFR5: Git command failures shall be captured and displayed without application crash.
-NFR6: Destructive operations shall require explicit user confirmation.
-NFR7: System shall explicitly set UTF-8 encoding for icon rendering.
-NFR8: Visual styling shall conform to ANSI standards with graceful fallback for limited palettes.
-NFR9: System shall delegate all authentication and credential management to the local Git CLI.
+NFR1: Repository tab switching shall occur in under 100ms.
+NFR2: File staging toggle UI update shall occur in under 50ms.
+NFR3: Memory usage shall be optimized to stay under 500MB for 3 open repositories.
+NFR4: The UI state shall never diverge from the results of the underlying git commands.
+NFR5: Git command failures shall be captured and displayed via a clear error modal.
+NFR6: The application shall run and behave consistently on Windows (10/11) and macOS (Intel/Apple Silicon).
+NFR7: System shall bundle its own styling and icons, requiring no external font installation.
 
 ### Additional Requirements
 
-- **Starter Template**: Modern .NET 10 CLI Pattern (C# 14, .NET 10.0, Native AOT, `Microsoft.Extensions.Hosting`, `Spectre.Console.Cli`).
-- Infrastructure: Vanilla `ProcessStartInfo` with a custom `GitProcess` wrapper in `Infrastructure/Git/`.
-- State Management: Snapshot-Based (Manual/Action-Driven Refresh).
-- Refresh Pattern: Listen for 'R' key for manual refresh; auto-refresh after mutation commands.
-- Naming: `PascalCase` for classes/methods, `_camelCase` for private fields, `View` suffix for renderables.
-- Feature-Based Structure: `/Features/Staging/`, `/Features/Branching/`, `/Infrastructure/Git/`, `/Core/State/`.
-- Result Pattern: All Git operations return `GitResult` or `Result<T>`.
-- Error Handling: Captured non-zero exit codes presented via `ErrorOverlay`.
+- Hybrid Desktop App architecture (Electron Main/Renderer).
+- Typed IPC bridge for communication.
+- Native Git CLI wrapper using child_process.
+- Serial Command Queue in Main process for Git mutations.
+- Zustand v5 for state management with optimistic updates.
+- xterm.js + node-pty for terminal emulation.
 
 ### UX Design Requirements
 
-UX-DR1: Implement "The Surgical Toggle" interaction (Space toggles state, instant visual feedback).
-UX-DR2: High-contrast indicators for staged/unstaged (Explicit checkboxes [ ] / [x]).
-UX-DR3: Semantic color system: Green (Staged), Yellow (Modified), Cyan (Added), Red (Deleted).
-UX-DR4: Centered "Surgical Overlay" panel-based layout with `BoxBorder.Double`.
-UX-DR5: Hybrid Command Overlay (`Shift+G`) with pre-filled `git ` prefix.
-UX-DR6: Persistent StatusBar with context-sensitive hotkey legend.
-UX-DR7: Multi-pane Layout using `Spectre.Console.Layout` (Navigation Sidebar + Action Pane).
-UX-DR8: "Refreshing..." status indicator in footer during snapshot fetch.
-UX-DR9: Inline Diff panel with side-by-side or inline view options.
-UX-DR10: Interactive list navigation with bold pointer (>) and background highlight for focus.
-UX-DR11: Real-time search/filtering in large repos via `/` key.
+UX-DR1: Draggable 3-pane layout (Files, Diff, Terminal) using react-resizable-panels.
+UX-DR2: Radix-based Tab system for multi-repo context switching.
+UX-DR3: Integrated xterm.js terminal implementation at the bottom.
+UX-DR4: High-fidelity Dark Theme using the CSS tokens defined in theme.css.
 
 ### FR Coverage Map
 
-FR1: Epic 1 - Git repository detection upon launch.
-FR2: Epic 1 - Persistent active branch indicator.
-FR3: Epic 1 - Real-time Staged/Unstaged/Untracked file status.
-FR4: Epic 1 - Automatic state refresh after operations.
-FR5: Epic 1 - Keyboard navigation for file list.
-FR6: Epic 1 - Space-bar staging toggle.
-FR7: Epic 1 - Bulk staging/unstaging by group.
-FR8: Epic 3 - Inline/side-by-side diff viewing.
-FR9: Epic 1 - Semantic color-coding for file status.
-FR10: Epic 3 - Local and remote branch list view.
-FR11: Epic 3 - Switch branches via Enter.
-FR12: Epic 3 - Create new branch via 'B' hotkey.
-FR13: Epic 3 - Upstream tracking detection and prompts.
-FR14: Epic 3 - Pushed/unpushed branch indicators.
-FR15: Epic 2 - Initiate commit flow via 'C' hotkey.
-FR16: Epic 2 - Multi-line commit message input.
-FR17: Epic 2 - Remote push prompt after commit.
-FR18: Epic 2 - Raw Git command execution bar.
-FR19: Epic 2 - Stdout/Stderr display for raw commands.
-FR20: Epic 1 - Files/Branches view switching.
-FR21: Epic 1 - Action cancellation/return via Escape.
-FR22: Epic 1 - Context-sensitive hotkey legend.
+FR1: Epic 2 - Manage multiple repos via tabs
+FR2: Epic 2 - Add repo via local folder selection
+FR3: Epic 2 - Close repository tabs
+FR4: Epic 2 - Display active branch per tab
+FR5: Epic 3 - View file status lists (Staged/Unstaged/Untracked)
+FR6: Epic 3 - Toggle staging state (Checkbox/Space)
+FR7: Epic 3 - High-contrast diff panel
+FR8: Epic 3 - Semantic color-coding for file statuses
+FR9: Epic 1 - Resizable 3-pane layout orchestrator
+FR10: Epic 4 - Integrated terminal pane
+FR11: Epic 4 - Per-tab terminal state persistence
+FR12: Epic 4 - Multi-line commit messaging
+FR13: Epic 4 - Post-commit push prompts
+FR14: Epic 3 - Auto-refresh UI state after operations
 
 ## Epic List
 
-### Epic 1: The Foundation & Surgical Staging (MVP)
-Establish the high-performance .NET 10 project and implement the core "Surgical Toggle" staging loop.
-**FRs covered:** FR1, FR2, FR3, FR4, FR5, FR6, FR7, FR9, FR20, FR21, FR22.
+### Epic 1: The GitVibe Shell (Foundation & Layout)
+Users have a functional desktop application window with the high-fidelity dark theme and the primary resizable 3-pane layout shell (Files, Diff, Terminal).
+**FRs covered:** FR9, UX-DR1, UX-DR4.
 
-### Epic 2: Commit Flow & Hybrid Power
-Implement the ability to commit changes and execute raw Git commands without leaving the TUI.
-**FRs covered:** FR15, FR16, FR17, FR18, FR19.
-
-### Epic 3: Seamless Branching & Diff Exploration
-Implement full branch management and inline diff viewing for surgical review.
-**FRs covered:** FR8, FR10, FR11, FR12, FR13, FR14.
-
-### Epic 4: Scale & Search (Large Repos)
-Optimize the experience for large repositories with real-time filtering.
-**FRs covered:** FR11 (Refined), UX-DR11.
-
-## Epic 1: The Foundation & Surgical Staging (MVP)
-
-Establish the high-performance .NET 10 project and implement the core "Surgical Toggle" staging loop.
-
-### Story 1.1: Project Scaffolding & Native AOT Setup
+### Epic 2: Multi-Repo Mastery (Tabbed Dashboard)
+Users can open multiple local repositories as tabs, switch between them instantly, and see the active branch for each context.
+**FRs covered:** FR1, FR2, FR3, FR4, UX-DR2.
+### Story 2.1: Multi-Repo State Management (Zustand)
 
 As a developer,
-I want a modern .NET 10 project structure with Native AOT and DI,
-So that I can build a high-performance, maintainable CLI tool with instant startup.
+I want a global state that supports multiple repositories,
+So that I can switch contexts without losing my workspace state.
 
 **Acceptance Criteria:**
 
-**Given** a new .NET 10 console application
-**When** I configure the .csproj with `PublishAot=true` and add `Spectre.Console` and `Microsoft.Extensions.Hosting`
-**Then** the project compiles successfully and produces a self-contained executable
-**And** the application initializes the Generic Host and sets `Console.OutputEncoding` to UTF-8.
+**Given** the Zustand store is initialized
+**When** I add a repository path to the store
+**Then** the store creates a new repository slice and sets it as active
+**And** switching between slices updates the global "activeRepo" state.
 
-### Story 1.2: Git Infrastructure & Status Parsing
+### Story 2.2: The Tabbed Navigation Interface
 
 As a user,
-I want the tool to accurately detect and parse my repository's status,
-So that I can see exactly which files are staged, modified, or untracked.
+I want to navigate between my repositories using tabs,
+So that I can quickly switch contexts while working on multiple projects.
 
 **Acceptance Criteria:**
 
-**Given** a valid Git repository
-**When** I launch GitVibe
-**Then** the system executes `git status --porcelain` using a custom process wrapper
-**And** the output is parsed into a list of `GitFile` records
-**And** the active branch name is correctly identified.
+**Given** multiple repositories in the Zustand store
+**When** I click a repository tab
+**Then** the UI updates to reflect that repository's context
+**And** clicking the "X" on a tab removes it from the store.
 
-### Story 1.3: The Surgical Staging Dashboard (MVP Layout)
+### Story 2.3: Repository Branch Detection (IPC)
 
 As a user,
-I want a focused, centered dashboard layout with a hotkey legend,
-So that I can easily see my repository status and know which keys to press.
+I want to see the active branch name on each repository tab,
+So that I know exactly which context I am working in.
 
 **Acceptance Criteria:**
 
-**Given** the application is running
-**When** the main view is rendered
-**Then** the UI uses a centered Layout with a `Double` border
-**And** a Navigation Sidebar and Action Pane are visible
-**And** a persistent Status Bar displays the current branch and a hotkey legend (Space, C, B, R, Esc).
+**Given** a repository is added or switched
+**When** the Main process executes git branch --show-current
+**Then** the active branch name is returned and displayed in the tab UI
+**And** the UI handles "detached HEAD" states gracefully.
 
-### Story 1.4: Interactive Staging Toggle (The "Surgical Toggle")
+## Epic 3: Surgical Staging Workspace (Files & Diffs)
+
+Users can visually audit their changes across repositories, toggle individual file staging via checkboxes/hotkeys, and review high-contrast side-by-side diffs.
+
+### Story 3.1: Git Status Parser & File List UI
 
 As a user,
-I want to toggle file staging using the space-bar with instant visual feedback,
-So that I can surgically prepare my commit without typing file paths.
+I want to see my changed files categorized by their Git status,
+So that I can quickly identify what needs to be staged.
 
 **Acceptance Criteria:**
 
-**Given** the Staging View is active with a list of changed files
-**When** I navigate with arrow keys and press Space on a file
-**Then** the system executes `git add` if it was unstaged, or `git reset` if it was staged
-**And** the UI immediately refreshes the file's status icon ([ ] vs [x]) and semantic color
-**And** the cursor (>) remains on the current line.
+**Given** an active repository tab
+**When** the system parses the porcelain output
+**Then** the UI displays a list of files with correct status indicators (M, A, D, ??)
+**And** Modified files are Yellow, Added are Green, and Deleted are Red.
 
-### Story 1.5: Manual Refresh & State Consistency
+### Story 3.2: Surgical Staging Toggle (Add/Reset)
 
 As a user,
-I want to manually refresh the repository state using the 'R' key,
-So that I can ensure the TUI is perfectly in sync with any external changes.
+I want to toggle the staging state of individual files,
+So that I can surgically prepare my next commit.
 
 **Acceptance Criteria:**
 
-**Given** the application is active
-**When** I press the 'R' key
-**Then** the system fetches a fresh `git status` snapshot
-**And** a "Refreshing..." indicator is briefly visible in the footer
-**And** the UI re-renders with the latest repository state.
+**Given** a list of unstaged or staged files
+**When** I click a checkbox or press Space on a selected file
+**Then** the system executes the corresponding git add or git reset command
+**And** the UI updates optimistically within 50ms.
 
-## Epic 2: Commit Flow & Hybrid Power
-
-Implement the ability to commit changes and execute raw Git commands without leaving the TUI.
-
-### Story 2.1: The Commit Flow (Hotkey 'C')
+### Story 3.3: High-Contrast Diff Viewer
 
 As a user,
-I want to initiate a commit flow using the 'C' hotkey,
-So that I can finalize my staged changes with a meaningful message.
+I want to view a clear diff of my changes for the selected file,
+So that I can verify my work before staging.
 
 **Acceptance Criteria:**
 
-**Given** I have staged files in the staging view
-**When** I press the 'C' key
-**Then** a centered Commit Message Input panel appears with a double border
-**And** I can type a multi-line message
-**And** pressing Enter (or a specific commit shortcut) executes `git commit -m "[message]"`
-**And** pressing Escape cancels the flow and returns to the staging view.
+**Given** a file is selected in the file list
+**When** the system fetches the diff content
+**Then** the right pane displays the diff with clear line-level highlighting for additions and deletions
+**And** the diff reflects the correct comparison (staged vs. HEAD or unstaged vs. index).
 
-### Story 2.2: Post-Commit Remote Push Prompt
+### Story 3.4: Auto-Refresh & State Integrity
 
 As a user,
-I want to be prompted to push my changes after a successful commit,
-So that I can easily keep my remote repository in sync.
+I want my workspace to stay in sync with my file system,
+So that I am always working with accurate Git information.
 
 **Acceptance Criteria:**
 
-**Given** a successful commit has just been executed
-**When** the system detects a remote tracking branch
-**Then** a prompt appears asking "Push changes to remote? (y/n)"
-**And** selecting 'y' executes `git push`
-**And** the UI refreshes the state after the operation completes.
+**Given** external changes are made to the repository
+**When** the GitVibe window regains focus or a Git command finishes
+**Then** the file list and branch status are automatically refreshed
+**And** the UI never diverges from the underlying Git state.
 
-### Story 2.3: Hybrid Command Overlay (Hotkey 'Shift+G')
+## Epic 4: Command Center (Commits & Terminal)
+
+Users can complete their workflow by drafting multi-line commits, pushing to remotes, and using an integrated terminal for raw CLI tasks.
+
+### Story 4.1: Integrated Terminal (xterm.js + node-pty)
+
+As a developer,
+I want an integrated terminal that tracks my active repository,
+So that I can run advanced Git commands without leaving the app.
+
+**Acceptance Criteria:**
+
+**Given** the terminal pane is visible
+**When** I type commands and press Enter
+**Then** the command is executed in a native shell scoped to the active repository's path
+**And** the output is rendered in the xterm terminal window.
+
+### Story 4.2: Inline Commit Interface
 
 As a user,
-I want a "Shift+G" escape hatch to run raw Git commands,
-So that I have the full power of the CLI within the TUI.
+I want a commit input box permanently docked below my file list,
+So that I can easily write commit messages immediately after staging files.
 
 **Acceptance Criteria:**
 
-**Given** the TUI is active
-**When** I press "Shift+G"
-**Then** an overlay input box opens with a pre-filled `git ` prefix
-**And** I can type and execute any Git subcommand
-**And** the TUI state is fully refreshed after the command executes.
+**Given** the File List panel is active
+**When** I look at the bottom of that panel
+**Then** I see a dedicated text area for the commit message and a "Commit" button
+**And** it is pinned to the bottom, remaining visible even when the file list is scrolled
+**And** clicking "Commit" executes the commit and clears the input.
 
-### Story 2.4: Integrated Output & Error Display
+### Story 4.3: Post-Commit Push Prompt & Sync
 
 As a user,
-I want to see the output and errors of my raw commands,
-So that I can diagnose issues without leaving the tool.
+I want to be prompted to push after I commit,
+So that I don't forget to sync my changes with the remote repository.
 
 **Acceptance Criteria:**
 
-**Given** I execute a raw command via the overlay
-**When** the command completes
-**Then** the stdout is displayed in a temporary output panel
-**And** if the command fails (non-zero exit code), an ErrorOverlay displays the stderr
-**And** the user must press a key to dismiss the error/output and return to the TUI.
+**Given** a successful local commit
+**When** the system detects an upstream branch exists
+**Then** a prompt/notification appears asking if I want to push
+**And** clicking "Push" executes `git push` and updates the UI status.
 
-## Epic 3: Seamless Branching & Diff Exploration
-
-Implement full branch management and inline diff viewing for surgical review.
-
-### Story 3.1: Branch Management View (Navigation)
+### Story 4.4: Global Error Handling & Modals
 
 As a user,
-I want a dedicated view to see all local and remote branches,
-So that I can understand my repository's context and history.
+I want to see clear error messages if a Git operation fails,
+So that I know how to recover from the failure.
 
 **Acceptance Criteria:**
 
-**Given** I am in the Files view
-**When** I press the tab/hotkey to switch views
-**Then** the UI switches to the Branching View
-**And** a list of local and remote branches is displayed in a table
-**And** icons indicate the active branch and pushed/unpushed state.
+**Given** a Git command (add/commit/push) fails
+**When** the Main process catches the stderr or exit code
+**Then** an error modal appears in the Renderer with the specific Git error message
+**And** the UI state remains stable (no divergent data).
 
-### Story 3.2: Switching & Creating Branches
+
+## Epic 1: The GitVibe Shell (Foundation & Layout)
+
+Users have a functional desktop application window with the high-fidelity dark theme and the primary resizable 3-pane layout shell (Files, Diff, Terminal).
+
+### Story 1.1: Electron + React + Tailwind Scaffolding
+
+As a developer,
+I want to initialize the project with Electron, React, and Tailwind CSS v4,
+So that I have a modern, performant foundation for the application.
+
+**Acceptance Criteria:**
+
+**Given** a clean project directory
+**When** I run the scaffolding command and apply the @new-design CSS tokens
+**Then** the application launches a window with the correct background color and theme variables
+**And** the IPC bridge is correctly typed and ready for use.
+
+### Story 1.2: The Resizable 3-Pane Layout Shell
 
 As a user,
-I want to switch and create branches using simple hotkeys,
-So that I can context-switch or start new work instantly.
+I want a resizable 3-pane layout for my workspace,
+So that I can customize the view for file lists, diffs, and the terminal.
 
 **Acceptance Criteria:**
 
-**Given** I am in the Branching View
-**When** I select a branch and press Enter
-**Then** the system executes `git checkout [branch]` and refreshes the UI
-**When** I press the 'B' key
-**Then** a prompt appears for a new branch name
-**And** the system executes `git checkout -b [name]` and detects/prompts for upstream tracking.
+**Given** a functional React renderer
+**When** I implement the PanelGroup for the side-by-side Files/Diff views and the bottom-docked Terminal
+**Then** the user can drag the resize handles to change the relative size of each pane
+**And** the layout handles window resizing gracefully.
 
-### Story 3.3: Inline Diff Explorer
-
-As a user,
-I want to peek at file diffs directly within the TUI,
-So that I can verify my changes before staging them.
-
-**Acceptance Criteria:**
-
-**Given** I have a file selected in the Staging View
-**When** I press the 'Enter' or 'D' key
-**Then** an Inline Diff panel opens showing the changes for that file
-**And** I can toggle between side-by-side and inline view modes
-**And** pressing Escape closes the panel and returns to the file list.
-
-## Epic 4: Scale & Search (Large Repos)
-
-Optimize the experience for large repositories with real-time filtering.
-
-### Story 4.1: Real-time File Filtering (Hotkey '/')
-
-As a user,
-I want to filter the file list in real-time using the '/' key,
-So that I can quickly find and stage specific files in a large repository.
-
-**Acceptance Criteria:**
-
-**Given** the Staging View is active with many changed files
-**When** I press the '/' key
-**Then** a minimal search input field opens
-**And** as I type, the file list filters in real-time to show only matching paths
-**And** I can still navigate and toggle the filtered results
-**And** pressing Escape clears the filter and returns to the full list.

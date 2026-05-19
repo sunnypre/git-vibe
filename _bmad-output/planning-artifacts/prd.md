@@ -13,170 +13,149 @@ stepsCompleted:
   - step-09-functional
   - step-10-nonfunctional
   - step-11-polish
+  - step-e-01-discovery
+  - step-e-02-review
+  - step-e-03-edit
 releaseMode: phased
 classification:
-  projectType: cli_tool
+  projectType: desktop_app
   domain: developer_tool
   complexity: low-medium
-  projectContext: greenfield
+  projectContext: brownfield_pivot
 inputDocuments:
   - _bmad-output/planning-artifacts/product-brief.md
   - _bmad-output/planning-artifacts/product-brief.distillate.md
+  - _bmad-output/planning-artifacts/sprint-change-proposal-desktop-pivot.md
 documentCounts:
   briefCount: 2
   researchCount: 0
   brainstormingCount: 0
   projectDocsCount: 0
 workflowType: 'prd'
+lastEdited: 'tisdag 19 maj 2026'
+editHistory:
+  - date: 'tisdag 19 maj 2026'
+    changes: 'Pivot from C# TUI to Electron + React Desktop GUI. Added multi-repo tabs, draggable panels, and integrated terminal. Removed TUI legacy requirements. Specified native Node.js child_process for Git interaction.'
 ---
 
 # Product Requirements Document - git-vibe
 
 **Author:** sunny
-**Date:** söndag 3 maj 2026
+**Date:** tisdag 19 maj 2026
 
 ## Executive Summary
 
-GitVibe is a lightweight, terminal-native Git "command center" designed to bridge the gap between the raw power of the Git CLI and the visual confidence of heavy desktop GUIs. It targets developers who find IDE-integrated Git tools or external GUI applications (like GitHub Desktop) cumbersome for frequent tasks but require a more visual, surgical approach to staging and branch management than the standard CLI provides. GitVibe solves the friction of complex staging and branching workflows by offering a high-fidelity interactive layer while maintaining a "terminal-first" philosophy.
+GitVibe is a lightweight, cross-platform desktop "Git Command Center" designed for developers who require a surgical, visual approach to staging and branch management without the bloat of traditional IDE integrations or heavy GUI applications. It provides a high-fidelity interactive experience that bridges the gap between raw CLI power and visual confidence. GitVibe is built as a **Hybrid Desktop App**, allowing for seamless multi-repository management and a flexible, draggable workspace.
 
 ### What Makes This Special
 
-GitVibe differentiates itself through a **Hybrid TUI** approach. Unlike traditional Git TUIs that abstract away the command line, GitVibe provides a seamless transition between high-level visual interactions (e.g., multi-select staging with semantic color-coding, checkmark indicators for pushed branches) and the ability to execute raw Git commands directly within the interface. This unique combination offers the "vibe" and visual clarity of a GUI with the speed and flexibility of the CLI, allowing developers to consolidate their workflow into a single, high-performance tool.
+GitVibe differentiation lies in its **High-Velocity Surgical Interface**. Unlike other Git GUIs, it prioritizes a "keyboard-first, visual-always" philosophy. It features a unique tabbed repository system, resizable panels for custom workflows, and an integrated terminal. By wrapping the native Git CLI directly via Node.js (without high-level third-party abstractions like simple-git), it ensures maximum reliability and a 1:1 relationship with the developer's local environment.
 
 ## Project Classification
 
-*   **Project Type:** CLI Tool (TUI)
+*   **Project Type:** Desktop Application (Electron)
 *   **Domain:** Developer Tools
-*   **Complexity:** Low-Medium (Performance and UX intensive)
-*   **Project Context:** Greenfield (.NET 10.0)
+*   **Complexity:** Medium (UI/UX Intensive, Process Management)
+*   **Project Context:** Brownfield Pivot (Electron + React + TypeScript + Zustand)
 
 ## Success Criteria
 
 ### User Success
-*   **Workflow Acceleration:** Users can perform complex staging (multi-file, mixed status) and commit actions significantly faster than via standard `git add -p` or manual CLI commands.
-*   **Visual Confidence:** Users report a high degree of certainty regarding what is staged versus unstaged, eliminating the need for frequent `git status` double-checks.
-*   **Focus Preservation:** Developers can stay entirely within their terminal flow, successfully replacing the need to switch to VS Code's Git UI or external GUI apps for common tasks.
+*   **Multi-Repo Mastery:** Users can switch between and manage multiple active repositories instantly via a tabbed interface.
+*   **Surgical Confidence:** Users report 100% certainty in staging mixed status changes through explicit visual checkboxes and side-by-side diffs.
+*   **Workflow Flow:** Developers maintain their productivity without leaving the app, utilizing the integrated terminal for edge-case CLI tasks.
 
 ### Business Success
-*   **Personal Utility:** The tool becomes the primary Git interface for the author (Sunny), successfully replacing VS Code's Git integration for daily development.
-*   **Performance Benchmark:** The application achieves a "snappy" feel, with sub-200ms response times for all TUI interactions (navigation, toggling, view switching).
-*   **Community Potential:** (Post-POC) The tool generates positive initial feedback from a small group of peer developers, indicating potential for broader CLI-tool adoption.
+*   **Primary Tool Adoption:** The tool becomes the primary Git interface for the author, replacing VS Code's Git UI and manual terminal staging for 100% of daily tasks.
+*   **Cross-Platform Performance:** Sub-500ms startup and sub-50ms UI latency on both Windows and macOS.
 
 ### Technical Success
-*   **Stability:** Zero crashes or hangs when parsing `git status` output, even in repositories with 500+ modified/untracked files.
-*   **Integrity:** 100% accuracy in command execution—the tool never stages or resets a file that was not explicitly selected by the user.
-*   **Terminal Compatibility:** Consistent rendering of colors and icons across Windows Terminal and standard PowerShell hosts (UTF-8).
+*   **Native Integrity:** 100% accuracy in Git execution by wrapping native `git` commands via `child_process`.
+*   **State Reliability:** Zustand state remains perfectly in sync with the file system after any manual or automated mutation.
+*   **Clean Dependency Tree:** Minimization of third-party libraries, using only trusted frameworks (Electron, React, Radix, Zustand, xterm.js).
 
 ### Measurable Outcomes
-*   **Task Efficiency:** Complete a "Stage 5 files -> Commit -> Push" cycle in under 15 seconds.
-*   **Interface Stickiness:** 100% of Git staging and branching tasks for the author are performed via GitVibe within one week of POC completion.
+*   **Multi-Repo Switching:** Switch between repository contexts in under 100ms.
+*   **Staging Cycle:** Complete a "Stage -> Commit -> Push" cycle in under 10 seconds.
 
 ## Product Scope & Roadmap
 
 ### MVP - Minimum Viable Product (Phase 1)
-*   **Navigation:** Landing menu with "Files" and "Branches" views.
-*   **Staging View:** Multi-select staging with semantic color-coding (Green/Yellow/Red), Space-bar toggling, and Inline Diff peeking.
-*   **Commit Flow:** Hotkey `C` to trigger a commit message prompt followed by an optional Push prompt.
-*   **Branching View:** Interactive list of local/remote branches with `Enter` to switch and `B` to create.
-*   **Hybrid Power:** Integrated command bar for raw Git execution with real-time TUI state refresh.
-*   **Visual Aesthetics:** Persistent branch status indicator and checkmark emojis for pushed states.
+*   **Tabbed Dashboard:** Manage multiple open repositories in a single window.
+*   **Draggable Layout:** Resizable panels for File List, Diff Explorer, and Terminal using `react-resizable-panels`.
+*   **Surgical Staging:** Multi-select file list with explicit checkboxes and semantic status colors.
+*   **Diff Explorer:** High-contrast diff viewer for selected files.
+*   **Integrated Terminal:** Full-featured terminal powered by `xterm.js` for raw CLI access.
+*   **Commit Flow:** Dedicated commit panel with multi-line support and push-after-commit prompts.
+*   **Native Backend:** Node.js backend executing native Git commands via `child_process`.
 
 ### Growth Features (Phase 2)
-*   **Conflict Resolution:** Interactive TUI for merging and resolving conflicts.
-*   **Stash Management:** TUI-driven stash/pop/apply workflows.
-*   **Customization:** Support for custom color schemes, icons, and hotkey mappings.
+*   **Branch Management:** Visual branch explorer with interactive merge/rebase triggers.
+*   **Stash Visualizer:** Visual management of the Git stash.
+*   **Search & Filter:** Real-time fuzzy search across large file lists.
 
 ### Vision (Phase 3)
-*   **Advanced Operations:** Interactive rebase, cherry-picking, and commit squashing.
-*   **Multi-Repository:** Unified dashboard for managing multiple local repos.
+*   **Conflict Resolution:** Interactive 3-way merge UI.
+*   **Custom Themes:** Support for user-defined CSS themes and hotkey mappings.
 
 ## User Journeys
 
-### Journey 1: The Surgical Stage (Primary Success Path)
-**Persona:** Alex, a Senior Developer working on complex refactoring.
-**Narrative:** After a lengthy coding session involving changes to 15+ files, Alex launches GitVibe. He quickly scans the color-coded list, uses arrow keys and `Space` to toggle exactly the files needed, and performs a quick inline diff check. He hits `C`, provide a message, and confirms the push. Alex returns to his prompt in seconds with a perfectly staged and pushed commit.
+### Journey 1: The Multi-Tasker (Primary Success Path)
+**Persona:** Alex, working on three related microservices.
+**Narrative:** Alex opens GitVibe with three tabs active. He makes a change in `service-a`, stages it surgically in the left panel, and commits. He immediately tabs over to `service-b`, checks the diff of a modified file to verify a logic change, and uses the integrated terminal at the bottom to run a quick `git stash`. He switches back and forth with zero latency.
 
-### Journey 2: The Context Switcher (Branching)
-**Persona:** Alex, needing to pivot for an urgent bug fix.
-**Narrative:** While deep in a feature branch, Alex opens GitVibe's Branches view. He selects `main`, handles uncommitted work via the tool's suggestions, and switches. He creates a new branch `fix/critical-bug` using `B`, and the tool handles the upstream tracking automatically.
+### Journey 2: The Surgical Diff Review
+**Persona:** Alex, reviewing a complex refactor.
+**Narrative:** Alex selects a file with 50+ changes. He drags the Diff Explorer panel to take up 70% of the screen. He scrolls through the side-by-side diff, toggles the staging checkbox, and sees the "Total Staged" counter update instantly. He feels 100% confident before hitting the commit hotkey.
 
-### Journey 3: The Hybrid Escape (Advanced Edge Case)
-**Persona:** Alex, performing low-level Git maintenance.
-**Narrative:** Alex needs to perform a specific `git reset --soft`. Rather than exiting the tool, he enters Direct Command Mode, types his raw command, and the TUI immediately refreshes its state to reflect the updated repository status.
-
-## Innovation & Novel Patterns
-
-### Hybrid TUI Command Interface
-A live, reactive dashboard that allows for seamless switching between high-level visual interactions and raw Git command execution without losing state or context.
-
-### Contextual Repository Intelligence
-Proactive workflows that analyze repository state to suggest next steps, such as automatic upstream tracking prompts during branch creation.
-
-### High-Velocity Staging Paradigm
-Rethinking Git staging as a surgical, multi-select visual experience optimized for terminal-first developers, eliminating the friction of manual path typing.
-
-## Project-Type Requirements (CLI Tool)
+## Project-Type Requirements (Desktop App)
 
 ### Technical Architecture
-*   **Interaction Model:** Exclusively Interactive TUI. No support for non-interactive subcommands or scriptable flags for the POC.
-*   **Output Strategy:** Optimized for human consumption via rich ANSI coloring, UTF-8 icons, and aligned table layouts.
-*   **Configuration:** Zero-config "plug-and-play" experience using hardcoded sensible defaults for the POC.
-*   **Shell Integration:** Standard executable execution with no shell completion or aliases required for MVP.
+*   **Process Model:** Electron Main (Node.js) for Git/File System access; Electron Renderer (React) for the UI.
+*   **Communication:** Strict IPC (Inter-Process Communication) with typed bridges.
+*   **Git Integration:** Direct execution of `git` commands via `child_process.exec` or `spawn`.
+*   **Terminal Implementation:** `xterm.js` integration for the bottom-docked terminal pane.
 
 ### Implementation Specifics
-*   **Command Structure:** Single entry point (`gv`) handling all internal routing.
-*   **Process Management:** Direct wrapper of Git CLI via `ProcessStartInfo` with output redirection.
-*   **Environment:** Exclusive target of UTF-8 environments (Windows Terminal, modern PowerShell).
+*   **Styling:** Tailwind CSS (v4) with Radix UI primitives for accessible components.
+*   **State Management:** Zustand for global frontend state (active repo, file list, selection).
+*   **Draggable UI:** `react-resizable-panels` for the primary layout orchestration.
 
 ## Functional Requirements
 
-### Repository & Status
-*   **FR1:** System can detect a valid Git repository upon launch.
-*   **FR2:** Users can view a persistent indicator of the current active branch.
-*   **FR3:** Users can view real-time Staged, Unstaged, and Untracked status of all files.
-*   **FR4:** System can automatically refresh state after any Git operation.
+### Repository & Tabs
+*   **FR1:** System can manage multiple Git repository instances simultaneously via tabs.
+*   **FR2:** Users can add a new repository by selecting a local folder.
+*   **FR3:** Users can close repository tabs independently.
+*   **FR4:** System detects and displays the active branch for each tab.
 
 ### Staging & Diff
-*   **FR5:** Users can navigate the file list using keyboard inputs.
-*   **FR6:** Users can toggle individual file staging via Space-bar.
-*   **FR7:** Users can perform bulk staging/unstaging by status group.
-*   **FR8:** Users can view a side-by-side or inline diff for any selected file.
-*   **FR9:** System can display semantic color-coding based on file status (Green/Yellow/Red).
+*   **FR5:** Users can view a list of all Staged, Unstaged, and Untracked files.
+*   **FR6:** Users can toggle individual staging state via explicit checkboxes or keyboard (Space).
+*   **FR7:** Users can view a high-contrast diff of the selected file in a dedicated panel.
+*   **FR8:** System provides semantic color-coding (Added, Modified, Deleted).
 
-### Branching
-*   **FR10:** Users can view a comprehensive list of local and remote branches.
-*   **FR11:** Users can switch to a selected branch via `Enter`.
-*   **FR12:** Users can create a new branch via `B` hotkey.
-*   **FR13:** System can detect and prompt for upstream tracking on new branches.
-*   **FR14:** Users can view "pushed/unpushed" status indicators for all branches.
+### Workspace & Terminal
+*   **FR9:** Users can drag and resize the File List, Diff Viewer, and Terminal panels.
+*   **FR10:** Users can interact with a functional terminal docked at the bottom of the interface.
+*   **FR11:** Terminal state is unique to the active repository tab.
 
-### Commits & Commands
-*   **FR15:** Users can initiate a commit flow via `C` hotkey.
-*   **FR16:** Users can provide multi-line commit messages.
-*   **FR17:** System can prompt for a remote push after successful commit.
-*   **FR18:** Users can execute "raw" Git commands via an integrated command bar.
-*   **FR19:** System can display standard output and error from raw command execution.
-
-### UX & Navigation
-*   **FR20:** Users can switch between primary views (Files/Branches) via hotkeys.
-*   **FR21:** Users can cancel current actions or return to menu via `Escape`.
-*   **FR22:** Users can view context-sensitive keyboard shortcut guidance.
+### Commits & Operations
+*   **FR12:** Users can initiate a commit with a multi-line message.
+*   **FR13:** System prompts for a remote push after a successful commit.
+*   **FR14:** System refreshes the UI state automatically after any Git operation.
 
 ## Non-Functional Requirements
 
 ### Performance
-*   **NFR1:** System shall initialize and display the landing menu in under 200ms.
-*   **NFR2:** UI interaction latency shall be sub-50ms for navigation and toggling.
-*   **NFR3:** Git status parsing shall complete in under 300ms for repos with 500+ files.
+*   **NFR1:** Repository tab switching shall occur in under 100ms.
+*   **NFR2:** File staging toggle UI update shall occur in under 50ms.
+*   **NFR3:** Memory usage shall be optimized to stay under 500MB for 3 open repositories.
 
 ### Reliability
-*   **NFR4:** TUI state shall never diverge from the actual Git repository state.
-*   **NFR5:** Git command failures shall be captured and displayed without application crash.
-*   **NFR6:** Destructive operations shall require explicit user confirmation.
+*   **NFR4:** The UI state shall never diverge from the results of the underlying `git` commands.
+*   **NFR5:** Git command failures shall be captured and displayed via a clear error modal.
 
-### Terminal Compatibility
-*   **NFR7:** System shall explicitly set UTF-8 encoding for icon rendering.
-*   **NFR8:** Visual styling shall conform to ANSI standards with graceful fallback for limited palettes.
-
-### Security
-*   **NFR9:** System shall delegate all authentication and credential management to the local Git CLI.
+### Cross-Platform
+*   **NFR6:** The application shall run and behave consistently on Windows (10/11) and macOS (Intel/Apple Silicon).
+*   **NFR7:** System shall bundle its own styling and icons, requiring no external font installation.

@@ -1,17 +1,24 @@
 ---
-stepsCompleted: [1, 2, 3, 4, 5, 6, 7, 8]
+stepsCompleted:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7
+  - 8
 workflowType: 'architecture'
 project_name: 'git-vibe'
 user_name: 'sunny'
-date: 'onsdag 6 maj 2026'
+date: 'tisdag 19 maj 2026'
 lastStep: 8
 status: 'complete'
-completedAt: 'onsdag 6 maj 2026'
+completedAt: 'tisdag 19 maj 2026'
 inputDocuments:
   - _bmad-output/planning-artifacts/product-brief.md
   - _bmad-output/planning-artifacts/prd.md
   - _bmad-output/planning-artifacts/ux-design-specification.md
-  - GEMINI.md
 ---
 
 # Architecture Decision Document
@@ -23,226 +30,253 @@ _This document builds collaboratively through step-by-step discovery. Sections a
 ### Requirements Overview
 
 **Functional Requirements:**
-The system requires a robust parser for `git status --porcelain` and a reactive UI layer built with `Spectre.Console`. Key features include multi-select staging, inline diff peeking, and a branch management suite. Architecturally, this requires a clear separation between the `GitService` (process management) and the `UI` (component rendering).
+The system requires a robust multi-repository management system via tabs and a highly interactive "Surgical Staging" interface. Architecturally, this necessitates a clean separation between the Electron Main process (Node.js/Git logic) and the Renderer process (React/Zustand), connected by a secure, typed IPC bridge.
 
 **Non-Functional Requirements:**
-Performance is the primary driver (sub-50ms UI latency). Reliability is critical, ensuring the TUI state never diverges from the disk state. Terminal compatibility (UTF-8) is a baseline requirement for the visual "vibe."
+Performance is paramount, with strict targets for tab switching (<100ms) and UI responsiveness (<50ms). Reliability is critical to ensure the GUI state never diverges from the Git disk state. Cross-platform consistency across Windows and macOS is a baseline requirement.
 
 **Scale & Complexity:**
-- Primary domain: Developer Tool / CLI (TUI)
-- Complexity level: Low-Medium
-- Estimated architectural components: 4 (GitService, UI Coordinator, StateManager, CommandOverlay)
+- Primary domain: Desktop Application (Electron)
+- Complexity level: Medium
+- Estimated architectural components: 6 (Electron Main, IPC Bridge, Git Service, Terminal Service, React Renderer, Zustand Store)
 
 ### Technical Constraints & Dependencies
-- **Target:** .NET 10.0 Console App.
-- **Dependency:** `Spectre.Console`.
-- **Constraint:** Direct Git CLI wrapper (No LibGit2Sharp).
-- **Environment:** Windows Terminal / PowerShell (UTF-8).
+
+- **Platform:** Electron (Main + Renderer).
+- **Frontend:** React 18, Zustand, Radix UI, Tailwind CSS.
+- **Terminal:** `xterm.js`.
+- **Constraint:** Direct Git CLI wrapper via native `child_process` (No `simple-git`).
 
 ### Cross-Cutting Concerns Identified
-- **State Sync:** Ensuring the UI refreshes accurately after every command (especially raw commands).
-- **Process Orchestration:** Handling Git `stderr` and non-zero exit codes gracefully within the TUI.
-- **Input Handling:** Managing a global hotkey loop that supports both navigational keys and functional overlays.
+
+- **IPC Communication:** Secure and performant data transfer between processes.
+- **Native Process Orchestration:** Managing long-running Git processes and terminal streams.
+- **State Synchronization:** Keeping multiple repository snapshots in sync with the file system.
 
 ## Starter Template Evaluation
 
 ### Primary Technology Domain
 
-CLI Tool (TUI) based on .NET 10.0 and `Spectre.Console`.
+Desktop Application (Electron) based on project requirements analysis.
 
-### Starter Options Considered
-
-1.  **Standard .NET Console (Current):** Simple, but lacks built-in Dependency Injection and performance optimizations like Native AOT.
-2.  **RapidConsole Template:** A community template that pre-configures DI and Spectre. However, it can add unnecessary "magic" for a surgical tool like GitVibe.
-3.  **Modern .NET 10 CLI Pattern (Selected):** A "Zero-Ceremony" approach using Top-Level Statements, `Microsoft.Extensions.Hosting` for DI, and Native AOT for sub-100ms startup times.
-
-### Selected Starter: Modern .NET 10 CLI Pattern
+### Selected Starter: `electron-vite` (Official CLI) + Material UI v6
 
 **Rationale for Selection:**
-GitVibe is a performance-intensive tool. By adopting the 2026 standard for .NET 10 CLI apps, we gain Native AOT (instant startup), Dependency Injection (testability), and C# 14 features (cleaner code) without adding heavy third-party boilerplate.
+We will use the official `electron-vite` tool for the robust platform foundation (Main/Renderer separation and fast build times). Instead of the Shadcn/Radix components from the Figma sketch, we will implement the layout using **Material UI (MUI) v6**. This provides a more comprehensive, pre-styled component library that is industry-standard for enterprise-grade tools, while still giving us the flexibility to achieve the specific multi-pane layout from your design.
+
+**Initialization Command:**
+
+```bash
+# 1. Scaffold the Electron+React+TS foundation
+npm create @quick-start/electron@latest git-vibe-desktop -- --template react-ts
+
+# 2. Install Material UI v6 and dependencies
+cd git-vibe-desktop
+npm install @mui/material @emotion/react @emotion/styled @mui/icons-material @fontsource/roboto
+```
 
 **Architectural Decisions Provided by Starter:**
 
-- **Language & Runtime:** C# 14 on .NET 10.0. Enables Native AOT for self-contained, high-performance binaries.
-- **Dependency Injection:** Using `Microsoft.Extensions.Hosting` to manage services (`GitService`) and UI coordinators.
-- **UI Framework:** `Spectre.Console` (v0.55+) for rich terminal rendering and UTF-8 compliance.
-- **Code Organization:** A Feature-based structure (e.g., `Git/`, `UI/`, `State/`) to keep the "Git logic" separated from "Spectre rendering."
-- **Performance:** Opting into `PublishAot` and `InvariantGlobalization` to minimize binary size and memory footprint.
+**Language & Runtime:**
+- TypeScript 5+ for strict typing across processes.
+
+**UI Component Library:**
+- **Material UI (MUI) v6:** Primary library for buttons, tabs, inputs, and layouts.
+- **Theming:** We will use MUI's `ThemeProvider` to define a "GitVibe Dark Theme" (using the colors from your design).
+
+**Build & Infrastructure:**
+- **Vite:** For near-instant UI updates during development.
+- **Electron-Builder:** For creating installers for Windows and Mac.
+
+**Code Organization:**
+- `src/main/`: Native Git logic (using Node.js `child_process`).
+- `src/renderer/`: React frontend with MUI components.
+- `src/preload/`: Safe IPC bridge.
 
 ## Core Architectural Decisions
 
 ### Decision Priority Analysis
 
 **Critical Decisions (Block Implementation):**
-- **Command Parsing:** `Spectre.Console.Cli` (v0.55.2)
-- **Process Management:** Vanilla `ProcessStartInfo` with a custom `GitProcess` wrapper.
-- **State Management:** Snapshot-Based (Manual/Action-Driven Refresh).
+- **Platform Architecture:** Electron (Main/Renderer) with a typed IPC Bridge.
+- **Git Integration:** Native `child_process` wrapper with a **Serial Command Queue** in the Main process.
+- **State Management:** **Zustand v5** with an **Optimistic Transaction** pattern.
 
 **Important Decisions (Shape Architecture):**
-- **Dependency Injection:** `Microsoft.Extensions.Hosting` (v10.0.0).
-- **Encoding:** Forced UTF-8 via `Console.OutputEncoding`.
+- **Terminal Emulation:** `xterm.js` + `node-pty` (in Main process).
+- **UI Framework:** Material UI (MUI) v6 with a centralized Dark Theme.
 
 **Deferred Decisions (Post-MVP):**
-- **Configuration Persistence:** Using a local `.gitvibe` json/toml (deferred until Phase 2).
+- **Packaging/Distribution:** Final installer configurations for Windows/Mac.
+- **Analytics/Logging:** Remote crash reporting.
 
-### Data Architecture
-- **Git State Model:** Using a `List<GitFile>` snapshot retrieved via `git status --porcelain`.
-- **In-Memory Selection:** A simple `HashSet<string>` tracking paths selected in the TUI before applying changes.
+### Communication & Git Integration
 
-### Communication Patterns
-- **CLI Wrapper:** Synchronous-looking `async` calls to the Git CLI. The `GitService` will handle the redirection of `stdout` and `stderr`.
-- **Error Handling:** Standardized `GitResult` object containing `ExitCode`, `Output`, and `Error`. Non-zero exit codes will trigger a centered Error Overlay.
+- **Serial Command Queue:** All Git mutation commands (`add`, `reset`, `commit`) are executed sequentially in the Main process to prevent `.git/index.lock` collisions.
+- **Optimistic Updates:** The UI (Zustand) updates immediately upon user action. A "pending" state is maintained until the Main process confirms success.
+- **Rollback Mechanism:** If a Git command fails, the Main process sends a typed IPC event to the Renderer to trigger a state rollback and error notification.
+- **IPC Bridge:** Strictly typed interface defined in `src/preload/`. No raw string-based IPC calls allowed in the Renderer.
 
-### UI Architecture (Frontend)
-- **Pattern:** Component-Driven (Spectre Panels/Tables).
-- **Navigation:** Arrow keys for movement, `Space` for toggling, `C` for commit, `Shift+G` for raw command.
-- **Refresh Strategy:** The UI will re-parse and re-render the entire dashboard after every internal Git command or manual `R` press.
+### Frontend Data Architecture
 
-### Infrastructure & Deployment
-- **Target:** Windows Terminal / PowerShell.
-- **Binary:** Native AOT (.exe) for instant startup.
+- **Zustand Store:** A single store with "Repository Slices" to manage multiple active repository states (tabs).
+- **State Synchronization:** Action-driven background refreshes after any Git operation + window focus-based refresh.
+- **Terminal Service:** A specialized service in the Main process to manage PTY (Pseudo-Terminal) sessions for the integrated terminal.
+
+### Reliability & Performance
+
+- **Non-Blocking UI:** Heavy Git operations never block the React rendering thread.
+- **Memory Optimization:** Repository state snapshots are kept lean, storing only necessary metadata for the surgical staging view.
+- **Fallback:** Manual "Hard Refresh" (Hotkey `R`) to re-sync with disk state in case of divergence.
 
 ## Implementation Patterns & Consistency Rules
 
 ### Naming Patterns
-- **Classes/Methods:** `PascalCase` (e.g., `GitService`, `GetStatusAsync`).
-- **Private Fields:** `_camelCase` (e.g., `_gitService`).
-- **View Suffix:** Use the `View` suffix for classes returning Spectre `IRenderable` objects (e.g., `FileListView`).
-- **Records:** Prefer `record` for immutable data models (e.g., `GitFile`).
+
+**Code Naming Conventions:**
+- **React Components:** PascalCase (e.g., `RepoTabs.tsx`).
+- **Hooks & Utilities:** camelCase (e.g., `useGitStore.ts`).
+- **Zustand Actions:** Descriptive verb-first camelCase (e.g., `stageFile()`, `commitChanges()`).
+
+**IPC Naming Conventions:**
+- **Format:** `context:action`.
+- **Examples:** `git:status`, `git:add`, `terminal:write`, `window:minimize`.
 
 ### Structure Patterns
-- **Feature-Based:**
-    - `/Features/Staging/`: UI and logic for staging.
-    - `/Features/Branching/`: UI and logic for branching.
-    - `/Infrastructure/Git/`: The `GitProcess` wrapper and `GitService`.
-    - `/Core/State/`: Shared state objects and selection tracking.
-- **Tests:** Co-located or in a matching `/tests` directory using `.Tests.cs` suffix.
 
-### Process Patterns: The Refresh Strategy
-- **Snapshot Trigger:** The UI state is ONLY updated via a full snapshot fetch.
-- **Manual Refresh:** The application MUST listen for the `R` key to trigger a manual `GitService` refresh.
-- **Auto-Refresh:** The system MUST trigger a snapshot refresh immediately following any successful mutation command (`add`, `reset`, `commit`, `checkout`).
-- **Visual Feedback:** During a refresh, the UI should briefly show a "Refreshing..." status in the footer.
+**File Structure Patterns:**
+- **Feature-Based UI:** React components should be grouped by feature rather than type (e.g., `src/renderer/src/features/Staging/`).
+- **Centralized Types:** Shared interfaces between Main and Renderer MUST live in a shared directory (e.g., `src/shared/types/`).
 
-### Error Handling Patterns
-- **Result Object:** All Git operations must return a `GitResult` or `Result<T>`.
-- **No Silent Failures:** If a Git command returns a non-zero exit code, it MUST be captured and presented via the `ErrorOverlay`.
+### Format Patterns
 
-### Component Patterns
-- **Stateless Views:** Views should be pure functions or classes that take a data model and return a Spectre `IRenderable`. They should not call `GitService` directly.
-- **Service Injection:** Logic services must be injected via the `IServiceProvider` (Dependency Injection).
+**API Response Formats (IPC Results):**
+- All IPC handlers in the Main process MUST return a consistent result object:
+  ```typescript
+  { 
+    success: boolean; 
+    data?: any; 
+    error?: string; 
+  }
+  ```
+
+### Process Patterns
+
+**Git Execution Pattern:**
+- A singleton `GitExecutor` class in the Main process handles all `child_process.spawn` interactions. It must ensure appropriate UTF-8 encoding and robust stderr capturing.
+
+**State Update Patterns:**
+- Zustand actions must use the "Single Action Function" pattern (no reducers/dispatchers). Optimistic updates must be paired with an asynchronous `.catch()` to rollback state on IPC failure.
+
+### Enforcement Guidelines
+
+**All AI Agents MUST:**
+- Use the typed `window.api` for IPC calls; never use raw `ipcRenderer.invoke`.
+- Never bypass the `GitExecutor` when interacting with the file system.
+- Ensure all React components use MUI v6 components or styled native elements that follow the theme variables.
 
 ## Project Structure & Boundaries
 
 ### Complete Project Directory Structure
 
 ```text
-GitVibe/
-├── GitVibe.csproj           # .NET 10, Native AOT, Spectre.Console
-├── Program.cs               # Generic Host Setup & TUI Entry Point
-├── GlobalUsings.cs          # Centralized common namespaces
-├── /Core
-│   ├── /State
-│   │   ├── RepositoryState.cs  # Snapshot of files and branches
-│   │   └── SelectionState.cs   # HashSet of toggled file paths
-│   └── /Models
-│       ├── GitFile.cs       # record for file status
-│       ├── GitBranch.cs     # record for branch status
-│       └── GitResult.cs     # Result Pattern for commands
-├── /Infrastructure
-│   └── /Git
-│       ├── GitProcess.cs    # Low-level ProcessStartInfo wrapper
-│       └── GitService.cs    # High-level domain service (Status, Add, Reset)
-├── /Features
-│   ├── /Staging
-│   │   ├── StagingCommand.cs # Spectre.Console.Cli Command
-│   │   ├── StagingView.cs    # Returns the main MultiSelect TUI
-│   │   └── DiffView.cs       # Returns the Inline Diff Panel
-│   ├── /Branching
-│   │   ├── BranchingCommand.cs
-│   │   └── BranchingView.cs
-│   └── /Shared
-│       ├── CommandOverlay.cs # Shift+G logic
-│       ├── ErrorOverlay.cs   # Error display logic
-│       └── StatusBarView.cs  # Legend and Branch indicator
-├── /Styles
-│   └── VibeTheme.cs         # Centralized colors and icons (UTF-8)
-└── /Tests
-    ├── GitParserTests.cs
-    └── ViewTests.cs         # Using Spectre.Console.Testing
+git-vibe/
+├── package.json
+├── electron.vite.config.ts  # Unified build config for Main/Preload/Renderer
+├── tsconfig.json
+├── tsconfig.node.json
+├── tsconfig.web.json
+├── build/                   # Output for packaged executables (.exe, .dmg)
+├── out/                     # Compiled JS during development
+├── src/
+│   ├── main/                # [NODE.JS BACKEND]
+│   │   ├── index.ts         # App lifecycle & Window management
+│   │   ├── ipcHandlers.ts   # Registers listeners for renderer requests
+│   │   ├── services/
+│   │   │   ├── GitExecutor.ts # child_process spawn logic & error handling
+│   │   │   └── PtyService.ts  # node-pty integration for the terminal
+│   │   └── utils/
+│   │       └── lockCheck.ts
+│   │
+│   ├── preload/             # [IPC BRIDGE]
+│   │   ├── index.ts         # contextBridge exposure
+│   │   └── index.d.ts       # Global Window types for TypeScript
+│   │
+│   ├── shared/              # [SHARED TYPES]
+│   │   ├── types/
+│   │   │   ├── GitModels.ts # e.g., GitFile, GitBranch interfaces
+│   │   │   └── IpcEvents.ts # Event name constants
+│   │
+│   └── renderer/            # [REACT FRONTEND]
+│       ├── index.html
+│       ├── src/
+│       │   ├── main.tsx     # React DOM render & ThemeProvider wrapper
+│       │   ├── App.tsx      # Main Layout orchestrator
+│       │   ├── store/       # Zustand State
+│       │   │   └── useGitStore.ts # Multi-repo slice logic
+│       │   ├── features/    # UI Components
+│       │   │   ├── Staging/
+│       │   │   │   ├── FileList.tsx
+│       │   │   │   └── DiffViewer.tsx
+│       │   │   ├── Branches/
+│       │   │   ├── Terminal/
+│       │   │   │   └── XTermWrapper.tsx
+│       │   │   └── Core/
+│       │   │       ├── RepoTabs.tsx
+│       │   │       └── StatusBar.tsx
+│       │   ├── theme/       # MUI v6 Configuration
+│       │   │   └── vibeTheme.ts
+│       │   └── assets/      # Icons, Fonts
 ```
 
 ### Architectural Boundaries
 
-**Git Boundary:**
-All Git interactions are encapsulated within `Infrastructure/Git/`. No other part of the application is permitted to use `System.Diagnostics.Process` directly.
+**IPC Boundary (The Bridge):**
+The **Renderer** (`src/renderer`) CANNOT require Node.js modules (like `child_process` or `fs`). It MUST communicate entirely through the `window.api` object defined in `src/preload/index.ts`. 
+
+**Git Service Boundary:**
+The **Main Process** (`src/main/services/GitExecutor.ts`) acts as the single entry point for all Git commands. It serializes commands, handles UTF-8 output parsing, and formats raw stdout into strongly typed `GitModels` before passing them back over the IPC bridge.
 
 **State Boundary:**
-The `Core/State/` layer acts as the single source of truth. UI Features are "snapshot-aware" but do not mutate the state directly; they request changes through services.
-
-**UI Boundary:**
-Features are isolated in the `/Features` directory. Communication between features is handled by the `Command` coordinator (Spectre.Console.Cli). Shared components like overlays are extracted to `/Features/Shared`.
-
-### Requirements to Structure Mapping
-
-**Repository & Status (FR1-FR4):**
-- Implementation: `Infrastructure/Git/GitService.cs`
-- View: `Features/Staging/StagingView.cs`
-
-**Staging & Diff (FR5-FR9):**
-- Staging Logic: `Features/Staging/StagingCommand.cs`
-- Diff View: `Features/Staging/DiffView.cs`
-
-**Branching (FR10-FR14):**
-- Branch Logic: `Features/Branching/BranchingCommand.cs`
-- View: `Features/Branching/BranchingView.cs`
-
-**Commits & Commands (FR15-FR19):**
-- Logic: `Infrastructure/Git/GitService.cs`
-- Overlays: `Features/Shared/CommandOverlay.cs`
-- Errors: `Features/Shared/ErrorOverlay.cs`
-
-**UX & Navigation (FR20-FR22):**
-- Layout: `Features/Shared/StatusBarView.cs`
-- Theme: `Styles/VibeTheme.cs`
+**Zustand** (`src/renderer/src/store/`) is the single source of truth for the UI. React components subscribe to the store, and the store dispatches IPC calls. Components do not call IPC methods directly.
 
 ## Architecture Validation Results
 
 ### Coherence Validation ✅
 
 **Decision Compatibility:**
-Using `Spectre.Console.Cli` alongside `Microsoft.Extensions.Hosting` is the 2026 standard for high-performance .NET 10 CLIs. The Native AOT constraint is supported by avoiding dynamic reflection-heavy libraries.
+The Electron-Vite starter ensures compatibility between React 18, Vite, and the Electron main process. The decision to use native `child_process` over `simple-git` is fully compatible with Electron's Node integration.
 
 **Pattern Consistency:**
-The "Result Pattern" for Git commands directly supports the "Error Overlay" UI requirement, ensuring consistent user feedback.
+The "Optimistic Transaction" state pattern using Zustand aligns perfectly with the "Serial Command Queue" in the Main process, preventing UI blocking while ensuring data integrity.
 
 **Structure Alignment:**
-The Feature-based structure (`/Features/Staging`) isolates the complex UI logic from the `Infrastructure/Git` layer.
+The strict separation of `src/main/`, `src/preload/`, and `src/renderer/` enforces the security and IPC boundaries defined in our architecture.
 
 ### Requirements Coverage Validation ✅
 
 **Functional Requirements Coverage:**
-Every FR (FR1-FR22) has a designated home in the project structure.
+- **FR1-FR4 (Tabs):** Supported by Zustand's multi-repo slice architecture.
+- **FR5-FR8 (Staging/Diff):** Supported by the React/MUI components and Optimistic UI updates.
+- **FR9-FR11 (Workspace/Terminal):** Supported by `react-resizable-panels` and the `xterm.js` integration in the Main process.
 
 **Non-Functional Requirements Coverage:**
-Performance (NFR1-3) is addressed via Native AOT and Snapshot-based state. Reliability (NFR4-6) is handled by the "Result Pattern" and explicit refresh strategy.
+- **NFR1-NFR2 (Performance):** Met by offloading Git execution to the Main process and utilizing Zustand for sub-50ms render cycles.
+- **NFR4-NFR5 (Reliability):** Addressed by the strict IPC typing and fallback `Hard Refresh` pattern.
 
 ### Implementation Readiness Validation ✅
 
 **Decision Completeness:**
-Critical versions (.NET 10, Spectre v0.55.2) are locked.
+All critical tools (`electron-vite`, React 18, Zustand v5, MUI v6, xterm.js) are explicitly selected and their architectural roles are defined.
 
 **Structure Completeness:**
-A full project tree with specific file locations is defined.
-
-**Pattern Completeness:**
-The "Refresh Pattern" (Manual 'R' key + Auto-refresh) specifically addresses potential agent confusion regarding state sync.
+A comprehensive directory tree, right down to the `GitExecutor.ts` singleton and the specific UI feature folders, has been mapped out.
 
 ### Gap Analysis Results
 
-**Minor Gap:** The specific format for the "Inline Diff" (FR8) is deferred to the implementation phase, but the `DiffView.cs` location is reserved.
+*No critical or important gaps remain.* 
 
-**Minor Gap:** Configuration persistence (Phase 2) is documented as deferred.
+**Minor Gap:** Terminal window resizing events (xterm.js `fit` addon) will require specific IPC debouncing logic during implementation to avoid spamming the Main process, but this is an implementation detail rather than an architectural blocker.
 
 ### Architecture Completeness Checklist
 
@@ -276,17 +310,17 @@ The "Refresh Pattern" (Manual 'R' key + Auto-refresh) specifically addresses pot
 **Confidence Level:** High
 
 **Key Strengths:**
-- Performance-first architecture (Native AOT + Snapshot State).
-- Rigid boundaries between Git process management and UI rendering.
-- Explicit patterns for error handling and state refreshing.
+- **Rock-Solid Foundation:** Relying on the official `electron-vite` CLI guarantees a correct IPC/Build setup.
+- **Snappy UX:** The "Optimistic Command Queue" pattern guarantees the UI never blocks while Git operations run.
+- **Clean Tooling:** Avoiding `simple-git` gives us ultimate control over process streams and error handling.
 
 ### Implementation Handoff
 
 **AI Agent Guidelines:**
-- Follow all architectural decisions exactly as documented
-- Use implementation patterns consistently across all components
-- Respect project structure and boundaries
-- Refer to this document for all architectural questions
+- Follow all architectural decisions exactly as documented.
+- Use implementation patterns consistently across all components.
+- Respect project structure and boundaries (Never call Node.js from Renderer).
+- Refer to this document for all architectural questions.
 
 **First Implementation Priority:**
-Upgrading the `.csproj` to the 2026 .NET 10 standard and initializing the directory structure.
+Run the `npm create @quick-start/electron@latest` scaffolding command, install MUI, and merge the Figma React prototype into the `src/renderer/` folder.
