@@ -1,14 +1,18 @@
 ---
-stepsCompleted: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+stepsCompleted: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
 inputDocuments:
-  - _bmad-output/planning-artifacts/prd.md
-  - _bmad-output/planning-artifacts/product-brief.md
+  - C:\repos\git-vibe\_bmad-output\planning-artifacts\prd.md
+  - C:\repos\git-vibe\_bmad-output\planning-artifacts\architecture.md
+  - C:\repos\git-vibe\_bmad-output\planning-artifacts\epics.md
+  - C:\repos\git-vibe\new-design\new-functionality.md
+  - C:\repos\git-vibe\new-design\src\app\App.tsx
+  - C:\repos\git-vibe\new-design\NEWDESIGN.png (referenced)
 ---
 
 # UX Design Specification git-vibe
 
 **Author:** sunny
-**Date:** måndag 4 maj 2026
+**Date:** 2026-05-19
 
 ---
 
@@ -16,285 +20,428 @@ inputDocuments:
 
 ### Project Vision
 
-GitVibe is a lightweight, terminal-native Git "command center" designed to bridge the gap between the raw power of the Git CLI and the visual confidence of heavy desktop GUIs. It targets developers who find IDE-integrated Git tools or external GUI applications cumbersome for frequent tasks but require a more visual, surgical approach to staging and branch management. The "Hybrid TUI" approach provides a seamless transition between high-level visual interactions and raw Git command execution.
+A Hybrid Desktop App (Electron + React) that provides a surgical, visual Git staging experience. It bridges the gap between raw CLI power and visual confidence with a "High-Velocity Surgical Interface" featuring a keyboard-first, visual-always approach, multi-repo tabs, and a draggable 3-pane layout powered by shadcn/ui.
 
 ### Target Users
 
-The primary user is the "CLI-first Developer" (e.g., Alex), who prefers staying in the terminal for speed but finds certain Git workflows like surgical staging and branch switching tedious in the raw CLI. They value performance, visual clarity without bloat, and a "snappy" interface that respects their existing terminal workflow.
+- **The Multi-Tasker:** Developers managing multiple microservices/repos simultaneously who need to switch contexts instantly.
+- **The Surgical Auditor:** Users who want 100% certainty in staging mixed changes through high-contrast diffs and explicit checkboxes.
+- **Power Users:** Tech-savvy developers who want their terminal close (integrated at the bottom) but desire a visual layer for staging/diffing.
 
 ### Key Design Challenges
 
-- **Information Density vs. Clarity:** Managing repository status with hundreds of files without overwhelming the user or sacrificing performance.
-- **Hotkey Discoverability:** Ensuring the interface is lightning-fast for power users while keeping core actions (Commit, Branch, Toggle) intuitive and visible.
-- **Integrated Escape Hatch:** Designing a command bar that allows for raw Git execution while ensuring the TUI state remains perfectly synced and reactive.
+- **Density vs. Clarity:** Fitting a file list, a complex diff viewer, and a functional terminal into a single window while keeping the "surgical" feel.
+- **Context Switching:** Ensuring the transition between repository tabs feels instantaneous and updates all three panes without visual "flicker."
+- **State Synchronicity:** Providing visual feedback (Optimistic Updates) that reflects the intent of a staging action before the Git command even finishes.
 
 ### Design Opportunities
 
-- **Semantic "Vibe":** Leveraging `Spectre.Console` colors and emojis to transform dry Git status into a vibrant, readable, and "alive" interface.
-- **Proactive Contextual Intelligence:** Reducing cognitive load by suggesting next steps, such as upstream tracking or post-commit pushes, based on repository state.
-- **High-Velocity Staging:** Rethinking staging as a surgical, multi-select visual experience optimized for terminal-first efficiency.
+- **The "Surgical Toggle":** Creating a highly satisfying, keyboard-accessible staging interaction (Spacebar/Click) with instant visual reinforcement.
+- **Layout Fluidity:** Using `react-resizable-panels` to let users prioritize the pane they need now (e.g., 70% Diff for review, 70% Terminal for complex commands).
+- **Context-Aware Terminal:** A terminal that automatically tracks the active repository and branch, reducing manual `cd` commands.
 
 ## Core User Experience
 
 ### Defining Experience
-The defining experience of GitVibe is **Visual Staging Mastery**. The user's primary loop is a high-speed assessment of the repository's status and the surgical selection of files to prepare a commit. This interaction must be more legible and faster than any existing CLI flag or manual staging process.
+
+The core experience of GitVibe revolves around **"Surgical Staging and Instant Context Switching."** The absolute most frequent action is selecting a modified file, reviewing the diff, and toggling its staging state with 100% confidence. While keyboard shortcuts are supported, the primary interaction is a **precise, mouse-driven workflow** that mimics the tactile nature of checking off a list.
 
 ### Platform Strategy
-GitVibe is a **Windows Terminal / PowerShell (TUI)** specialist. It leverages `Spectre.Console` for rich color and UTF-8 glyphs. It prioritizes keyboard interaction and ensures all icons have clear fallbacks and layouts are responsive to terminal resizing.
+
+GitVibe is a **Hybrid Desktop Application (Electron + React)** designed for macOS and Windows. 
+- **Mouse-Primary:** The UI is optimized for precise mouse interaction, specifically for selecting files in a dense list and clicking explicit checkboxes to stage changes.
+- **Keyboard-Supported:** Hotkeys (e.g., Spacebar to stage, 'C' to commit) are available as a "fast-lane" for power users, but the primary UI affordances are visual and mouse-friendly.
+- **Terminal Integration:** Integrates a fully functional native terminal (xterm.js) mapped to the local file system.
 
 ### Effortless Interactions
-- **The Staging Toggle:** Using `Space` to toggle a file's staged state must be instantaneous, with immediate visual feedback through color changes and explicit checkbox updates.
-- **The Raw Command Overlay:** Pressing `Shift+G` instantly opens a minimal text input for raw Git commands, allowing for execution and a seamless return to the TUI state.
+
+- **Tactile Staging:** Clicking a checkbox to stage/unstage a file must reflect instantly in the UI (<50ms), providing that "done" satisfaction.
+- **Zero-Flicker Tabs:** Moving between repositories must retain the exact layout, selected files, and terminal session without any load times.
+- **Visual Discovery:** Simply clicking through a file list should immediately update the diff pane, making it effortless to "audit" a repository.
 
 ### Critical Success Moments
-The moment of success is the **"Perfect Commit"**: When a user stages a complex set of changes, verifies them with a glance at the visual indicators, and commits—all without typing a single file path.
+
+- **The Satisfying Audit:** The moment a user selects a file with complex changes, reviews the diff, and clicks the checkbox, feeling the instant state update and visual confirmation.
+- **The Context Jump:** The "aha!" moment when a user successfully commits in Repo A, tabs over to Repo B, and the workspace is exactly as they left it.
 
 ### Experience Principles
-- **Clarity over Complexity:** Use explicit checkmarks and color-coded status (Modified/Added/Deleted) to provide instant visual context.
-- **Overlay-First Utility:** Raw command execution should feel like an "escape hatch" overlay, not a departure from the tool.
-- **Snappy Responsiveness:** UI updates for toggles and command results must be sub-50ms to maintain the "Vibe" of a high-performance tool.
+
+- **Precision Over Speed:** Prioritize clear, clickable UI elements (like checkboxes) that give the user absolute control.
+- **Visual Confidence Over Raw Output:** Use semantic colors (Red, Green, Yellow) and explicit statuses to guide the user.
+- **Zero-Latency Context:** Tab switching and staging toggles must feel instantaneous.
+- **Seamless Fallback:** The integrated terminal is always available for when the visual UI isn't enough, ensuring the developer never feels trapped.
 
 ## Desired Emotional Response
 
 ### Primary Emotional Goals
-The primary goal is **Surgical Confidence**. Users must feel in total control of their repository's state, experiencing a sense of precision and mastery over their staging and branching workflows. The UI should feel "nice" and modern but strictly functional, avoiding unnecessary flashiness that could distract from the task.
+
+Users should feel **Surgically Empowered and In Control.** GitVibe should transform the often-anxious process of staging complex changes into a calm, systematic audit. The primary emotion is **Confidence**—the user knows exactly what is being staged because they can see it, touch it (via the mouse), and verify it instantly.
 
 ### Emotional Journey Mapping
-- **Initial Launch:** "This is professional and focused."
-- **Interaction Loop:** "I see exactly what I'm doing; I can't make a mistake."
-- **Post-Action:** "That was significantly easier than the raw CLI."
-- **Error/Edge Case:** "I know exactly why this failed and how to fix it via the command overlay."
+
+- **Discovery:** "Wow, this looks like a professional command center." (Aesthetic Delight)
+- **Core Action (Staging):** "I see it, I check it, it's done." (Surgical Precision & Satisfaction)
+- **Error State:** "Ah, okay, I see what Git is complaining about." (Clarity & Trust, rather than Panic)
+- **Completion (Commit/Push):** "Clean commit. Done." (Sense of Accomplishment)
+- **Return:** "Everything is exactly where I left it." (Reliability & Ease)
 
 ### Micro-Emotions
-- **Precision:** Feeling like a surgeon selecting exactly what goes into the commit.
-- **Reliability:** Trusting that the TUI state is a 1:1 reflection of the underlying Git state.
-- **Coolness:** The subtle satisfaction of using a high-performance, aesthetically pleasing terminal tool.
+
+- **Tactile Satisfaction:** The "click" of a checkbox and the instant UI update should feel as satisfying as ticking off a real-world list.
+- **Visual Calm:** The high-contrast dark theme and organized 3-pane layout should reduce the "information overload" often felt in raw Git terminals.
+- **Trust:** The 1:1 relationship with the Git CLI builds deep technical trust.
 
 ### Design Implications
-- **Empowerment** → Direct mapping of keys (Space/Enter) to high-impact Git actions.
-- **Trust** → Immediate UI refresh after any command execution (especially raw commands).
-- **Focus** → A minimal, aligned layout that prioritizes the file list and status above all else.
+
+- **Surgically Empowered** → High-contrast diffs with clear "Plus/Minus" indicators and explicit, large-hitbox checkboxes.
+- **Calm & Focused** → A clean, consistent dark theme (shadcn/ui) that eliminates visual noise and prioritizes the active task.
+- **Confidence & Trust** → Real-time status indicators (M, A, D) and auto-refresh logic that ensures the UI never "lies" to the user.
 
 ### Emotional Design Principles
-- **Functional Aesthetics:** Beauty comes from alignment, typography, and purposeful color, not from animation or decoration.
-- **Transparent State:** Never hide the underlying Git status; make it more visible and easier to interpret.
-- **Safe Exploration:** Ensure destructive actions are clear and confirmations are present where necessary, building a safety net that encourages speed.
+
+- **Tactile Reinforcement:** Every interaction, especially the staging toggle, must provide immediate visual feedback.
+- **Clarity Over Complexity:** Abstract away the confusion of raw `git status` output into semantic, color-coded visual cues.
+- **The "Vibe" of Reliability:** The UI should feel like a heavy-duty tool—stable, responsive, and predictable.
 
 ## UX Pattern Analysis & Inspiration
 
 ### Inspiring Products Analysis
-- **LazyGit:** Analyzed for its "snappy" keyboard-driven navigation and multi-pane layout. It excels at providing a high-density "dashboard" view of the repository while keeping actions just one keystroke away.
-- **k9s (Kubernetes TUI):** Inspirational for its command-driven navigation and the way it handles resource lists with high performance and clear status indicators.
+
+- **VS Code:** Specifically its source control sidebar. It does a great job of showing file statuses and provides a "staging" workflow, but its diff view can feel cramped. GitVibe learns from its **Density** and **Iconography** but solves the "cramped" feel with a flexible 3-pane layout.
+- **Sublime Merge:** A masterclass in **Performance** and **Diff Clarity**. It handles massive repositories with zero lag. GitVibe aims for this level of "instant" feel, especially in context switching.
+- **Linear:** Not a Git tool, but inspiring for its **Aesthetic Precision** and high-quality dark theme. Its use of subtle borders, clean typography, and purposeful spacing is what we want to emulate with shadcn/ui.
 
 ### Transferable UX Patterns
-- **Interactive List Toggling:** Borrowing the "Space to select" pattern common in TUIs, but enhancing it with explicit visual checkboxes for "Surgical Confidence."
-- **Persistent Hotkey Legend:** A bottom-aligned status bar that updates based on the current view (Files vs. Branches) to ensure users always know their next move.
-- **Pane Focus:** A clear visual distinction (e.g., border color change) between the "Navigation" pane and the "Action" pane.
+
+**Navigation Patterns:**
+- **The "Browser Tab" for Repos:** Similar to VS Code's editor tabs or Chrome, using tabs at the top for multi-repo switching is a pattern users already understand intuitively.
+- **Draggable Sidebars:** A pattern common in IDEs that gives users the power to prioritize their active task (e.g., hiding the terminal or expanding the diff).
+
+**Interaction Patterns:**
+- **Explicit Checkbox Staging:** Unlike some tools that use "Plus/Minus" icons, explicit checkboxes (similar to a todo list) provide a clearer mental model of "on/off" or "staged/unstaged."
+- **Inline Highlighting:** Green/Red line-level diffing is the industry standard for code review and is a non-negotiable for "Visual Confidence."
 
 ### Anti-Patterns to Avoid
-- **Abstraction Overload:** Avoiding the trap of hiding Git too deeply. Users should always feel like they are interacting with the Git CLI, supported by the `Shift+G` escape hatch.
-- **Deep Menu Nesting:** Every primary action (Commit, Push, Branch) must be a top-level hotkey to maintain the "High-Velocity" vibe.
+
+- **Hidden Modals for Staging:** Never force a user to open a dialog box to stage or commit; these should be primary, always-available interface elements.
+- **Delayed Syncing:** Avoid UIs that require a manual "Refresh" to see file system changes. The UI must be reactive.
+- **Over-Abstraction:** Don't hide the "Git truth." If a rebase fails, show the raw Git error rather than a generic "Something went wrong" message.
 
 ### Design Inspiration Strategy
-- **Adopt:** The multi-pane layout for constant context and the single-key navigation model for speed.
-- **Adapt:** The command interface—instead of a complex command-palette, use a lightweight "Overlay" for raw Git commands (`Shift+G`) to keep the "Hybrid" promise.
-- **Avoid:** Complex configuration files or deep sub-menus; keep the POC "Zero-Config" and flat.
+
+**What to Adopt:**
+- **Performance First:** Emulate Sublime Merge's sub-100ms response times for all UI actions.
+- **High-Density UI:** Adopt the dense, information-rich layout of VS Code but improve it with resizable panels.
+
+**What to Adapt:**
+- **Linear-style Aesthetics:** Use shadcn/ui to achieve a premium, polished dark theme that feels more "designed" than a standard IDE.
+- **Optimistic UI:** Implement state updates that feel as fast as a native C++ app, despite being a web-tech hybrid.
+
+**What to Avoid:**
+- **Generic IDE Bloat:** Avoid adding file explorers, debuggers, or extensions. Keep the focus surgically on Staging, Diffs, and Commits.
 
 ## Design System Foundation
 
 ### 1.1 Design System Choice
-The project will utilize a **Custom Component-Driven System** built on top of the **Spectre.Console** library. This approach leverages Spectre's rich terminal primitives (Layouts, Panels, Tables) to create a set of bespoke GitVibe-specific components.
+
+**shadcn/ui** (Built on Radix UI and Tailwind CSS v4).
 
 ### Rationale for Selection
-- **Visual Branding:** Allows us to define a unique "GitVibe" aesthetic (specific color palettes and emoji sets) that differentiates it from other TUIs.
-- **Consistency:** Reusable components ensure that the "File List" in the staging view and the "Branch List" in the branching view share the same interaction logic and visual language.
-- **Performance:** Direct use of `Spectre.Console` ensures we stay within the "snappy" sub-200ms performance budget by avoiding heavy third-party abstractions.
+
+- **Design Fidelity:** shadcn/ui aligns perfectly with the "Linear-style" precision identified in our inspiration phase. Its components are clean, high-density, and professional.
+- **Customization:** Unlike a "heavy" component library (like Material UI), shadcn/ui provides the source code for each component. This allows us to surgically modify components (like checkboxes and tabs) to fit the unique "surgical staging" requirements without fighting a framework.
+- **Accessibility:** By utilizing **Radix UI** primitives under the hood, we ensure that the complex 3-pane layout remains fully accessible to keyboard and screen-reader users.
+- **Developer Experience:** It leverages Tailwind CSS v4 for ultra-fast styling and the latest CSS variable-based theming.
 
 ### Implementation Approach
-- **Atomic Components:** Standardized `GitVibe.Label`, `GitVibe.StatusBadge`, and `GitVibe.ShortcutHint` widgets.
-- **Compound Components:** A `GitVibe.Dashboard` layout that manages the relationship between the sidebar and the main action pane.
-- **Interaction Layer:** A centralized input handler to ensure that keys like `Space` or `Shift+G` behave consistently across the entire application.
+
+We will use the **"Copy-and-Customize"** pattern. We'll initialize shadcn/ui in the Electron Renderer process and only "pull in" the components we need (Tabs, Resizable Panels, Buttons, Inputs, Checkboxes). This keeps the bundle size small and the UI performance high.
 
 ### Customization Strategy
-- **Semantic Tokens:** Define a set of "Vibe Colors" (e.g., `Vibe.Added`, `Vibe.Modified`, `Vibe.Action`) instead of hardcoding raw colors, allowing for easy theme adjustments in the future.
-- **Fallback Logic:** Every component will have a "No-Emoji" or "Limited-Color" fallback to ensure the UX remains functional in less capable terminal environments.
 
-## 2. Core User Experience
+- **Design Tokens:** We will map the CSS variables from the `@new-design` CSS file directly into the Tailwind/shadcn theme.
+- **Surgical Component Overrides:** The `Checkbox` and `FileRow` components will be customized to have larger hitboxes and unique "Modified/Added/Deleted" state indicators.
+- **High-Density Focus:** We will reduce default padding and margins across all shadcn components to achieve the "IDE-like" density required for managing large file lists.
+
+## Defining Core Experience
 
 ### 2.1 Defining Experience
-The defining experience of GitVibe is **"The Surgical Toggle."** It transforms the often-tedious CLI staging process into a high-velocity, visual "to-do list" interaction. Users navigate a list of repository changes and use the `Space` bar to check off exactly what belongs in the next commit. This interaction provides instant visual confirmation, eliminating the need for constant `git status` double-checks.
+
+**"The Surgical Toggle."** 
+The defining experience of GitVibe is the act of selecting a file with complex, multi-line changes, reviewing the high-contrast diff, and clicking an explicit checkbox to "stage" it. It's about turning a messy terminal output into a clear, satisfying checklist interaction where every "click" feels heavy with technical confidence.
 
 ### 2.2 User Mental Model
-Users view their uncommitted changes as a collection of "tasks" or "items" that need to be sorted. Instead of thinking in file paths (the CLI model), they think in terms of **Selection and Inclusion**. They expect the TUI to behave like a modern multi-select list where the state is persistent, obvious, and highly responsive.
+
+Users bring a **"Todo List" mental model** to this task. They view their modified files as a list of tasks that need to be "completed" (staged) before they can "close the loop" (commit). They expect:
+- **Instant gratification:** Clicking the box should provide an immediate visual state change.
+- **Visual Evidence:** They don't want to take the app's word for it; they want to see the "Plus/Minus" lines in the diff panel to confirm their memory.
+- **Symmetry:** Unstaging should be as easy and tactile as staging.
 
 ### 2.3 Success Criteria
-- **Sub-50ms Response:** Toggling a file must feel instantaneous; any perceptible lag breaks the "Surgical" feeling.
-- **Unambiguous State:** Using a combination of explicit checkboxes `[x]` and semantic colors (Green for Staged, Gray for Unstaged) to ensure 100% confidence.
-- **Muscle Memory Focus:** The interaction should be so consistent that a power user can stage a complex set of files using only arrow keys and space without looking at the keyboard.
+
+- **The "Sub-50ms" Rule:** The checkbox and file row status must update instantly on click, even if the underlying `git add` takes slightly longer.
+- **Zero Ambiguity:** The user should never wonder "Did I stage this?" The visual difference between a staged and unstaged row must be stark and semantic.
+- **No Lost Context:** If a user switches tabs, the specific file they were reviewing must remain selected when they return.
 
 ### 2.4 Novel UX Patterns
-GitVibe combines the established **TUI Pane Navigation** (LazyGit-style) with a **Hybrid Command Overlay**. While the staging list is a familiar pattern, the use of `Shift+G` as a non-disruptive text-entry overlay for raw Git commands is a novel "escape hatch" that keeps the user within the TUI while granting full CLI power.
+
+GitVibe combines **established IDE patterns** (side-by-side diffs) with a **novel "Staging Dashboard" focus**. Unlike VS Code, where staging is a side-activity, in GitVibe it is the *primary* activity. 
+- We innovate by using a **multi-pane "dashboard" layout** (powered by `react-resizable-panels`) that keeps the File List, Diff Explorer, and Terminal all visible at once, eliminating the need to toggle sidebars or open new views.
 
 ### 2.5 Experience Mechanics
-1.  **Initiation:** Upon launch, the cursor is automatically placed on the first item in the "Unstaged" or "Untracked" list.
-2.  **Interaction:** The user moves the cursor with `Up/Down` and toggles state with `Space`.
-3.  **Feedback:** The checkbox toggles `[ ]` ↔ `[x]`, and the line's color shifts immediately (e.g., from dim modified yellow to bright staged green).
-4.  **Completion:** The user hits `C` to commit, which triggers a focused message input field, followed by an optional push prompt.
+
+**1. Initiation:**
+- User clicks a file row in the left-hand "Changes" panel.
+
+**2. Interaction:**
+- The right-hand "Diff Explorer" updates instantly to show the file's diff.
+- User hovers over the explicit checkbox next to the filename.
+- User clicks the checkbox (or presses Space).
+
+**3. Feedback:**
+- **Visual:** The checkbox fills, the row's status indicator changes (e.g., from a hollow 'M' to a solid 'M'), and a "Total Staged" counter at the bottom of the list increments.
+- **Auditory/Haptic (Optional):** A subtle UI sound or "click" feel to reinforce the action.
+
+**4. Completion:**
+- The file remains in the list but is visually grouped or marked as "Staged."
+- The user moves to the next file or clicks the "Commit" button at the bottom of the list.
 
 ## Visual Design Foundation
 
 ### Color System
-The color system is **Semantic and Functional**, focused on state clarity rather than decoration.
-- **Staged (Success):** Bright Green (`[green]`) + `[x]` or `✔` icon.
-- **Modified (Warning):** Yellow (`[yellow]`) + `M` or `✱` icon.
-- **Added/Untracked (New):** Cyan/Green (`[cyan]`) + `A` or `+` icon.
-- **Deleted (Danger):** Red (`[red]`) + `D` or `✘` icon.
-- **Focused Line:** Subtle background highlight or bold pointer (`>`) to clearly indicate cursor position.
-- **Secondary Info:** Dimmed/Gray text for file paths and metadata.
+
+The color system is derived directly from the provided Figma scaffold (`new-design/src/styles/theme.css` and `App.tsx`), forcing a **High-Contrast Dark Theme** specifically tuned for developer tools (like VS Code).
+
+*   **Backgrounds:** Deep dark grays.
+    *   App Background: `#1e1e1e`
+    *   Panel Backgrounds (File List): `#252526`
+    *   Header/Tab Bar: `#2d2d2d`
+*   **Foreground/Text:** Soft whites and grays to reduce eye strain.
+    *   Primary Text: `#cccccc`
+    *   Active/Hover Text: `#ffffff`
+    *   Muted/Secondary: `#888888`
+*   **Semantic Accents (Crucial for Git):**
+    *   **Modified (M):** `#4ec9b0` (Teal/Cyan)
+    *   **Added (A):** `#89d185` (Green)
+    *   **Deleted (D):** `#f48771` (Red/Coral)
+    *   **Active Selection (Borders/Highlights):** `#007acc` (VS Code Blue)
+*   **Diff Colors:**
+    *   Addition Background: `#1e4620`
+    *   Deletion Background: `#4b1818`
 
 ### Typography System
-Typography focuses on **Hierarchy through Weight and Glyph Selection**.
-- **Active Selection:** Bold text for the focused item.
-- **Status Indicators:** Explicit checkboxes `[ ]` / `[x]` provide a clear mental model.
-- **Glyph Set:** A mix of ASCII-safe fallback brackets and modern UTF-8 status icons.
+
+*   **System UI Font:** Standard system sans-serif (Inter/San Francisco/Segoe UI) for toolbars, file lists, and general UI elements. Weight: `400` normal, `500` for emphasis.
+*   **Code Font:** A monospace font (e.g., Fira Code, Cascadia Code, or system default) is **mandatory** for the Diff Explorer and Terminal panes to ensure precise character alignment.
 
 ### Spacing & Layout Foundation
-The layout uses a **Vertical Stack with Pane Separation** for high-density information.
-- **Header Section:** Persistent repository name and active branch.
-- **Main Action Pane:** Semi-dense list separated by "Staged" vs "Unstaged" headers.
-- **Borders:** Thin `Spectre.Console` panel borders to define the work area.
-- **Footer:** A persistent hotkey legend for immediate discoverability.
+
+*   **High-Density Layout:** Padding and margins should be kept to an absolute minimum to maximize vertical screen real estate for file lists and diffs.
+    *   *Example:* File rows use `py-2` (8px) padding instead of a typical `py-4` web standard.
+*   **Structural Grid:** The application relies on a **3-Pane Flex/Grid Model** managed by `react-resizable-panels`.
+    *   Top Left: Changes List (30% width)
+    *   Top Right: Diff Explorer (70% width)
+    *   Bottom: Terminal (30% height, full width)
+*   **Borders:** Use subtle borders (`#3e3e3e`) to distinguish interactive areas and panes without creating visual clutter.
 
 ### Accessibility Considerations
-- **Redundant Encoding:** All states are conveyed via **Color + Icon + Text** (e.g., Green + `✔` + `Staged`).
-- **Clear Focus State:** The cursor position is never ambiguous, using high-contrast pointers and bold text.
-- **ANSI Fallback:** Strategy for functional display in standard terminals with limited color support.
+
+*   **Contrast Ratios:** The semantic colors (Teal, Green, Red) against the deep gray (`#1e1e1e`) backgrounds must meet WCAG AA contrast standards. The provided hex values appear to achieve this.
+*   **Keyboard Navigation:** While "mouse-primary", every interactive element (tabs, resize handles, file rows, checkboxes) must be reachable via the `Tab` key, with a clear focus ring (using the primary `#007acc` blue).
 
 ## Design Direction Decision
 
 ### Design Directions Explored
-We explored three distinct TUI layouts:
-- **Direction 1 (Industrial Dashboard):** A multi-pane approach focused on high-density information.
-- **Direction 2 (Focused Minimalist):** A borderless, whitespace-driven layout for maximum simplicity.
-- **Direction 3 (Surgical Overlay):** A centered, high-focus "Command Center" feel with explicit checkboxes and a reactive command overlay.
+
+Rather than generating abstract HTML mockups, we evaluated the provided, fully functional React scaffold (`@new-design/src/app/App.tsx`). This scaffold already answers the fundamental layout and component questions with a high degree of fidelity.
 
 ### Chosen Direction
-The project will move forward with **Direction 3: The Surgical Overlay**. This direction prioritizes the current task (staging or branching) by using centered panels and high-contrast indicators.
+
+**The Scaffolded "3-Pane Flex Dashboard"**
+
+We are officially adopting the design direction implemented in the `App.tsx` scaffold. It features:
+- A Radix-powered Tab Bar at the top for repo switching.
+- A vertical `PanelGroup` splitting the main workspace from the terminal.
+- A horizontal `PanelGroup` splitting the Changes List (left) from the Diff Explorer (right).
 
 ### Design Rationale
-- **Surgical Precision:** The centered, panel-based layout creates a "focus zone" that minimizes distraction, matching the user's mental model of "Surgical Staging."
-- **Tactile Feedback:** The use of heavy borders (`╔═╗`) and explicit `[x]` checkboxes makes the digital interaction feel physical and definitive.
-- **Integrated Hybridity:** This direction provides the best foundation for the `Shift+G` command overlay, as the "Command Bar" can feel like a natural extension of the centered panel.
+
+- **Proven Mental Model:** The 3-pane layout perfectly matches the user's expectation of "List -> Detail -> CLI Execution." It puts all necessary context on the screen at once.
+- **Flexibility:** Using `react-resizable-panels` allows the user to dynamically adjust visual weight depending on their immediate task (e.g., dragging the diff pane wider for a complex review).
+- **Direct Implementation Path:** Since the scaffold is already built in React using Radix and Tailwind, it provides a 1:1 blueprint for the final Electron Renderer implementation.
 
 ### Implementation Approach
-- **Spectre.Console Panels:** Use the `Panel` widget with `BoxBorder.Double` for the main workspace.
-- **Centered Layout:** Utilize `Align.Center` to position the workspace in the middle of the terminal.
-- **Overlay Simulation:** When `Shift+G` is pressed, the main panel will shrink or a second "input" panel will appear immediately below it, maintaining the centered focus.
+
+1.  **Extract Tokens:** The CSS variables from `theme.css` will be ported into the main application's Tailwind configuration.
+2.  **Port the Scaffold:** The `App.tsx` structure will be ported directly into the primary layout component of the new app.
+3.  **Upgrade with shadcn/ui:** We will replace the raw HTML buttons and custom tabs in the scaffold with the actual `shadcn/ui` equivalents (e.g., `Tabs`, `Button`, `ScrollArea`) to ensure consistent accessibility and hover states while maintaining the exact visual look defined in the scaffold.
 
 ## User Journey Flows
 
-### The Surgical Stage (Primary Path)
+### Journey 1: The Multi-Tasker Context Switch
 
-Alex has 15 files changed. He wants to stage 5 specific ones and commit.
-
-```mermaid
-graph TD
-    A[Launch gv] --> B{View Status List}
-    B --> C[Navigate with Arrows]
-    C --> D[Space to Toggle File]
-    D --> E{Staged?}
-    E -- Yes --> F[UI: Green + Checkbox [x]]
-    E -- No --> G[UI: Gray/Yellow + [ ]]
-    F --> H[Hit 'C' to Commit]
-    H --> I[Input Commit Message Overlay]
-    I --> J{Enter}
-    J --> K[Execute git commit]
-    K --> L[Prompt: Push? y/n]
-    L -- y --> M[Execute git push]
-    M --> N[Refresh TUI]
-    L -- n --> N
-```
-
-### The Hybrid Escape Flow
-
-Alex needs to do something the TUI doesn't support yet, like `git stash`.
+**Goal:** Seamlessly switch between repositories, stage a file, and switch back without losing mental context.
+**Entry Point:** User has the GitVibe window open with at least two repository tabs active.
 
 ```mermaid
 graph TD
-    A[TUI Active] --> B[Hit Shift+G]
-    B --> C[Overlay Input Box Opens]
-    C --> D[Type Raw Command: 'stash']
-    D --> E{Enter}
-    E --> F[Execute git stash]
-    F --> G{Error?}
-    G -- Yes --> H[Display Error Panel]
-    G -- No --> I[Refresh TUI State]
-    H --> I
-    I --> J[Close Overlay]
+    A[Repo A Active] --> B{Action needed in Repo B?};
+    B -- Yes --> C[Click Tab for Repo B];
+    C --> D[UI updates instantly <100ms];
+    D --> E[User clicks file in Changes List];
+    E --> F[Diff Explorer updates <50ms];
+    F --> G[User clicks Staging Checkbox];
+    G --> H[Optimistic UI Update: File is Staged visually];
+    H --> I((Background Git Add process));
+    H --> J[Click Tab for Repo A];
+    J --> K[Repo A state exactly as left it];
 ```
+
+**Optimizations:** 
+- The click on a new tab must never trigger a "loading spinner" over the whole app. If Git takes time to fetch status, the old cached state is shown with a subtle background refresh indicator.
+- Staging a file is "fire and forget." The user doesn't wait for the Git process (I) to finish before clicking back to Repo A (J).
+
+### Journey 2: The Surgical Diff Review
+
+**Goal:** Review a complex file with many changes and stage it with 100% confidence.
+**Entry Point:** User selects a file with a high line-change count from the Changes List.
+
+```mermaid
+graph TD
+    A[Select modified file] --> B[Diff renders in right pane];
+    B --> C{Diff is too wide/long?};
+    C -- Yes --> D[Drag resize handle to expand Diff pane];
+    C -- No --> E[Scroll through changes];
+    D --> E;
+    E --> F[Hover over file in list];
+    F --> G[Click Staging Checkbox];
+    G --> H[Checkbox fills with Theme Blue];
+    H --> I[Row status indicator changes M -> Staged];
+    I --> J[Global 'Total Staged' counter increments];
+```
+
+**Optimizations:**
+- The resize handle logic is fluid and live (no jumpy rendering).
+- The checkbox has a deliberately larger hitbox than its visual rendering to ensure "sloppy clicks" still succeed.
 
 ### Journey Patterns
-- **Action-Overlay Pattern:** Critical secondary actions (Committing, Raw Commands) are handled via centered overlays that preserve the context of the underlying list.
-- **Instantaneous Feedback Pattern:** Every navigation and toggle action results in sub-50ms visual updates.
+
+Across these flows, we establish key interaction patterns:
+- **Optimistic Staging:** All UI mutations related to staging happen instantly in the Zustand store. If the Main process reports a failure, the state rolls back, and a Toast notification appears.
+- **Fire and Forget Context:** Tabbing away from a view preserves scroll position, selected file, and terminal history completely.
 
 ### Flow Optimization Principles
-- **Minimalist Decision Matrix:** Only show information relevant to the current journey (e.g., Hide remote branch info during a local file staging journey).
-- **Reduced Pathing:** Minimize the number of keystrokes required to reach "Success" (Commit/Push).
+
+- **Minimize Cognitive Load:** Users never wait on a progress bar for primary actions. The app always feels faster than raw CLI `git`.
+- **Error Recovery:** If a background process fails (e.g., `git add` fails due to lock file), the system toasts an error and automatically re-runs `git status` to repair the UI state to match disk truth.
 
 ## Component Strategy
 
-### Design System Components
-The foundation of GitVibe's UI is built on **Spectre.Console** primitives:
-- **`Layout`**: Manages the high-level grid and pane relationships.
-- **`Panel`**: Used for the "Surgical Overlay" containers with bold, double-line borders.
-- **`Table`**: Ensures column alignment for the file and branch lists.
-- **`TextPrompt`**: The underlying engine for the commit message and command overlay inputs.
+### Design System Components (shadcn/ui)
+
+We will leverage the following Radix-powered components from shadcn/ui to build the foundation:
+- **Tabs:** For the main repository switcher at the top of the window.
+- **ScrollArea:** For the Changes List and the Diff Explorer to ensure custom, cross-platform scrollbars that match the dark theme.
+- **Checkbox:** The core primitive for the "Surgical Toggle," customized heavily.
+- **Button:** For standard actions like "Commit."
+- **Textarea:** For the multi-line commit message input.
+- **Sonner / Toast:** For global error notifications and background sync updates.
 
 ### Custom Components
 
-#### `GitVibe.StagingList`
-**Purpose:** High-velocity repository status management.
-**Anatomy:** A table featuring `[Selection]`, `[Status Icon]`, `[Filename]`, and `[Path]`.
-**Interaction:** Instant `Space` toggle between Staged (Green + `[x]`) and Unstaged (Gray/Yellow + `[ ]`).
+The following components are highly specific to GitVibe and will be built custom (though they may wrap shadcn primitives):
 
-#### `GitVibe.CommandOverlay`
-**Purpose:** The "Hybrid Escape Hatch" for raw Git execution.
-**Anatomy:** A centered input panel featuring a pre-filled, non-editable `git ` prefix.
-**Interaction:** Triggered by `Shift+G`. User input is highlighted to differentiate it from the pre-filled command.
+#### 1. `FileRow`
+**Purpose:** Represents a single file in the Changes List.
+**Anatomy:** [Checkbox] + [File Icon] + [File Path] + [Status Badges (M/A/D) + Line Counts].
+**States:** Default, Hover (subtle lighter gray background), Selected (blue left border, slightly lighter background).
+**Interaction Behavior:** Clicking the checkbox toggles staging. Clicking anywhere else in the row selects the file and updates the Diff Explorer.
 
-#### `GitVibe.StatusBar`
-**Purpose:** Discoverability and global status.
-**Anatomy:** A persistent footer line displaying the current branch and a context-sensitive legend of hotkeys.
+#### 2. `TerminalWrapper`
+**Purpose:** Hosts the `xterm.js` instance.
+**Usage:** Docked at the bottom of the main `PanelGroup`.
+**Interaction Behavior:** Listens for active repository changes in Zustand and dynamically updates the PTY session or writes `cd <repo-path>` commands to stay in sync.
+
+#### 3. `DiffLine`
+**Purpose:** Renders a single line of Git diff output.
+**Anatomy:** [Line Number] + [Prefix (+/-)] + [Code Content].
+**Variants:** 
+- `addition` (Green text, dark green background)
+- `deletion` (Red text, dark red background)
+- `context` (Gray text, transparent background)
+- `hunk-header` (Blue text, `@@` prefix).
 
 ### Component Implementation Strategy
-- **Compositional Architecture:** Custom widgets wrap Spectre primitives to encapsulate Git-specific logic (e.g., a `GitStatus` enum driving the color/icon of a row).
-- **Reactive Refresh:** Components are re-rendered based on the underlying Git repository state to ensure the UI never diverges from reality.
+
+1. **Extract Overrides:** We will not run `npx shadcn-ui@latest add` indiscriminately. We will add components individually and immediately override their Tailwind classes to match the high-density, high-contrast tokens we defined in the Visual Foundation.
+2. **Hitbox Independence:** For the `FileRow`, the visual checkbox might be 16x16px, but its interactive hitbox (padding) should be at least 24x24px to ensure the "sloppy click" optimization works.
 
 ### Implementation Roadmap
-- **Phase 1 (MVP):** `StagingList`, `StatusBar`, and `CommandOverlay` (Focus: Staging Loop).
-- **Phase 2 (Growth):** `BranchList` and multi-line `CommitOverlay`.
-- **Phase 3 (Polished):** Inline Diff View and repository search.
+
+- **Phase 1 (The Shell):** Install shadcn/ui, configure Tailwind with the `@new-design` CSS tokens, and implement the `Tabs` and `react-resizable-panels` shell.
+- **Phase 2 (The Lists):** Implement the custom `FileRow` and `ScrollArea`, hooking them up to dummy Zustand data.
+- **Phase 3 (The Details):** Implement the `DiffLine` parser/renderer and integrate `xterm.js` into the `TerminalWrapper`.
 
 ## UX Consistency Patterns
 
-### Overlay & Modal Patterns
-- **When to Use:** For any task requiring text input (commit messages, raw commands) or explicit confirmation.
-- **Visual Design:** A centered `Panel` with a `Double` border that sits "on top" of the background list.
-- **Behavior:** The background list is dimmed (Gray text) while the overlay is active. `Esc` always closes the overlay and returns focus to the list.
+### Button Hierarchy
+
+To maintain focus on the "Surgical Staging" loop, we use a strict button hierarchy:
+- **Primary Action (The "Commit" Button):** High-contrast blue (`#007acc`) with white text. Reserved exclusively for finishing the staging cycle.
+- **Secondary Actions (e.g., "Add Repo", "Push"):** Hollow outline with primary blue or light gray border. Used for non-destructive, supporting actions.
+- **Ghost Actions (e.g., "Close Tab", "Refresh"):** No background or border. Only visible on hover to reduce visual clutter in the high-density layout.
 
 ### Feedback Patterns
-- **Success:** A brief, green status message in the status bar (e.g., `✔ Commit Successful`).
-- **Error:** An orange/red overlay panel showing raw Git `stderr` output, requiring an explicit keypress to dismiss.
-- **Selection:** Immediate "Total Staged" count updates in the header/footer upon any `Space` toggle.
 
-### Navigation & Focus Patterns
-- **Cursor UI:** A bold `>` pointer and a high-contrast background (e.g., Blue) for the active line.
-- **Selection Logic:** `Space` toggles state; `Arrows` move the cursor; `Enter` executes primary action (Switch branch / Peek diff).
+- **Staging Success:** Immediate visual feedback (checkbox fill + row color change). No notification needed for successful staging.
+- **Commit Success:** A subtle, non-blocking Sonner toast at the bottom right: "Commit successful."
+- **Critical Errors (e.g., Merge Conflict, Lock File):** A Sonner toast with a "Destructive" red variant. If the error is complex, the toast includes a "Show Details" button that opens a scrollable log.
+- **In-Progress:** A subtle "pulse" animation on the repository tab icon when a background `git` command (like `git fetch`) is running.
 
-### Search & Filtering Patterns
-- **Trigger:** Pressing `/` opens a specialized minimal input field.
-- **Behavior:** The list filters in real-time as the user types, hiding non-matching files to assist in large repositories.
-- **Clearing:** `Esc` clears the filter and returns to the full list.
+### Form Patterns
+
+- **Inline Commits:** The commit message area is always visible at the bottom of the Changes list. It is a borderless textarea that expands its border color to the primary blue only when focused.
+- **Validation:** If a user clicks "Commit" without a message, the textarea border flashes red once, and the focus is automatically returned to the input.
+
+### Navigation Patterns
+
+- **Zero-Depth Tabs:** Navigation is strictly flat. Users should never have to "dive into" a menu to see their repos. Tabs at the top are the primary and only navigation mechanism.
+- **Context Preservation:** Every tab maintains its own `PanelGroup` layout state. If a user hides the terminal in Repo A, it remains hidden in Repo A even if it is visible in Repo B.
 
 ### Empty States
-- **Clean Repo:** If `git status` is empty, show a centered, friendly message: `✨ Repository is clean. Enjoy the vibe!` with prompts for alternative actions.
+
+- **No Repositories:** A central large icon with a "Drop folder here to begin" or "Open Local Repository" primary button.
+- **No Changes:** A satisfying "Clean" state message: "Everything staged. Your working directory is clean."
+- **No File Selected:** The Diff Explorer shows a centered placeholder icon: "Select a file to view changes."
+
+## Responsive Design & Accessibility
+
+### Responsive Strategy
+
+GitVibe is a Desktop Application (Electron) where responsive design focuses on layout fluidity and information density. We utilize a 3-Pane Flex Dashboard (Files, Diff, Terminal) powered by `react-resizable-panels`. Extra screen real estate is used to expand the Diff Explorer horizontally for side-by-side reviews and the Changes List vertically for large repositories.
+
+### Breakpoint Strategy
+
+- **Compact Mode (< 1000px):** The Changes List collapses or narrows, prioritizing the Diff Explorer.
+- **Standard Mode (1024px - 1440px):** Default balanced 30/70 split between Files and Diffs.
+- **Ultra-Wide Mode (> 1920px):** Supports optional 3-column views (Files | Diff | Commit History) to leverage massive display space.
+
+### Accessibility Strategy
+
+- **WCAG Level AA Compliance:** Target industry standard accessibility.
+- **Color Contrast:** High-contrast semantic colors (Teal, Green, Red) tuned for dark themes.
+- **Keyboard-First Workflow:** Full support for Spacebar (Stage), Cmd/Ctrl+Enter (Commit), and Arrow Key navigation.
+- **Screen Reader Support:** Semantic ARIA labels for file statuses and optimistic UI updates.
+- **Focus Indicators:** High-visibility focus rings using the primary theme blue.
+
+### Testing Strategy
+
+- **Automated Checks:** Integration of `axe-core` for accessibility linting.
+- **Manual Audits:** Periodic "Keyboard-Only" workflow validations.
+- **Visual Simulation:** Color blindness testing to ensure +/- indicators are clear without color reliance.
+
+### Implementation Guidelines
+
+- **Semantic HTML:** Use proper tags (<button>, <nav>) to ensure accessibility.
+- **Focus Management:** Utilize Tailwind's `focus-visible` for consistent interaction cues.
+- **Relative Typography:** Use `rem` units to respect OS font scaling preferences.
