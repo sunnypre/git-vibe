@@ -40,6 +40,14 @@ const api = {
       } catch (error: unknown) {
         return { success: false, error: (error as Error).message }
       }
+    },
+    getCurrentBranch: async (repoPath: string): Promise<IpcResponse<string>> => {
+      if (!repoPath?.trim()) return { success: false, error: 'Invalid repository path' }
+      try {
+        return await ipcRenderer.invoke(IPC_EVENTS.GIT.BRANCH, repoPath)
+      } catch (error: unknown) {
+        return { success: false, error: (error as Error).message }
+      }
     }
   }
 }

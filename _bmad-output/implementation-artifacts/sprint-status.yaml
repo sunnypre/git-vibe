@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-05-19T10:00:00.000Z
-last_updated: 2026-05-19T23:15:00.000Z
+last_updated: 2026-05-25T16:00:00.000Z
 project: git-vibe
 project_key: NOKEY
 tracking_system: file-system
@@ -49,11 +49,11 @@ development_status:
   epic-2: in-progress
   2-1-multi-repo-state-management-zustand: done
   2-2-the-tabbed-navigation-interface: done
-  2-3-repository-branch-detection-ipc: backlog
+  2-3-repository-branch-detection-ipc: done
   epic-2-retrospective: optional
-  epic-3: backlog
-  3-1-git-status-parser-file-list-ui: backlog
-  3-2-surgical-staging-toggle-add-reset: backlog
+  epic-3: in-progress
+  3-1-git-status-parser-file-list-ui: done
+  3-2-surgical-staging-toggle-add-reset: done
   3-3-high-contrast-diff-viewer: backlog
   3-4-auto-refresh-state-integrity: backlog
   epic-3-retrospective: optional

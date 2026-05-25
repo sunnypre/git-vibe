@@ -3,6 +3,7 @@ import * as Tabs from '@radix-ui/react-tabs'
 import { GitBranch, Plus, X, FileDiff, Terminal as TerminalIcon } from 'lucide-react'
 import { ResizeHandle } from './components/ResizeHandle'
 import { useGitStore, useActiveRepo } from './store/useGitStore'
+import { FileList } from './features/Staging/FileList'
 
 function App(): React.JSX.Element {
   const { repositories, activeRepoId, addRepository, setActiveRepository, removeRepository } = useGitStore()
@@ -84,8 +85,8 @@ function App(): React.JSX.Element {
                           Changes ({activeRepo.files.length})
                         </h2>
                       </div>
-                      <div className="flex-1 p-4 flex items-center justify-center text-muted-foreground italic text-sm">
-                        File list for {activeRepo.path}
+                      <div className="flex-1 min-h-0">
+                        <FileList />
                       </div>
                     </div>
                   </Panel>

@@ -10,6 +10,7 @@ declare global {
         add: (repoPath: string, files: string[]) => Promise<IpcResponse>
         reset: (repoPath: string, files: string[]) => Promise<IpcResponse>
         commit: (repoPath: string, message: string) => Promise<IpcResponse>
+        getCurrentBranch: (repoPath: string) => Promise<IpcResponse<string>>
       }
     }
   }

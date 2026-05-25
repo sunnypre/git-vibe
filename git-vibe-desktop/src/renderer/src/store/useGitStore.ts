@@ -19,13 +19,22 @@ export interface GitActions {
   setActiveRepository: (id: string | null) => void
   removeRepository: (id: string) => void
   updateRepositoryState: (id: string, updates: Partial<RepositorySlice>) => void
+  refreshBranch: (id: string) => Promise<void>
+  refreshStatus: (id: string) => Promise<void>
+  stageFile: (id: string, path: string) => Promise<void>
+  unstageFile: (id: string, path: string) => Promise<void>
 }
 
 const normalizePath = (p: string): string => {
-  const normalized = p.replace(/\\/g, '/').replace(/\/+$/, '')
-  // On Windows, paths are case-insensitive. We normalize to lowercase for the ID
-  // but we could also preserve the original path in the object if needed.
-  return normalized.toLowerCase()
+  if (!p) return ''
+  let normalized = p.replace(/\\/g, '/')
+  // Remove trailing slashes except for Windows drive roots (e.g., C:/)
+  if (normalized.length > 3 && normalized.endsWith('/')) {
+    normalized = normalized.replace(/\/+$/, '')
+  }
+  if (normalized === '') normalized = '/'
+  // Note: We no longer lowercase to prevent collisions on case-sensitive filesystems
+  return normalized
 }
 
 export const useGitStore = create<GitState & GitActions>((set, get) => ({
@@ -33,6 +42,8 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
   activeRepoId: null,
 
   addRepository: (rawPath) => {
+    if (!rawPath || !rawPath.trim()) return
+
     const path = normalizePath(rawPath)
     set((state) => {
       if (state.repositories[path]) {
@@ -43,7 +54,7 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
       const newRepo: RepositorySlice = {
         path: rawPath, // Store the original path for display/commands
         name,
-        currentBranch: 'unknown',
+        currentBranch: 'loading...',
         files: [],
         isLoading: false,
         isRefreshing: false,
@@ -56,10 +67,20 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
         activeRepoId: path
       }
     })
+    
+    // Trigger branch and status refresh
+    get().refreshBranch(path)
+    get().refreshStatus(path)
   },
 
-  setActiveRepository: (id) =>
-    set({ activeRepoId: id }),
+  setActiveRepository: (id) => {
+    if (id === get().activeRepoId) return
+    set({ activeRepoId: id })
+    if (id) {
+      get().refreshBranch(id)
+      get().refreshStatus(id)
+    }
+  },
 
   removeRepository: (id) =>
     set((state) => {
@@ -98,7 +119,141 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
           [pathId]: { ...state.repositories[pathId], ...updates }
         }
       }
+    }),
+
+  refreshBranch: async (id) => {
+    const pathId = normalizePath(id)
+    const repo = get().repositories[pathId]
+    if (!repo || repo.isRefreshing) return
+
+    set((state) => ({
+      repositories: {
+        ...state.repositories,
+        [pathId]: { ...state.repositories[pathId], isRefreshing: true }
+      }
+    }))
+
+    try {
+      const response = await window.api.git.getCurrentBranch(repo.path)
+      if (response.success) {
+        get().updateRepositoryState(pathId, { 
+          currentBranch: response.data || 'unknown',
+          isRefreshing: false,
+          lastSyncedAt: Date.now()
+        })
+      } else {
+        get().updateRepositoryState(pathId, { 
+          currentBranch: 'error',
+          error: response.error || 'Failed to get branch',
+          isRefreshing: false
+        })
+      }
+    } catch (err: any) {
+      get().updateRepositoryState(pathId, { 
+        currentBranch: 'error',
+        error: err.message,
+        isRefreshing: false
+      })
+    }
+  },
+
+  refreshStatus: async (id) => {
+    const pathId = normalizePath(id)
+    const repo = get().repositories[pathId]
+    if (!repo || repo.isLoading) return
+
+    set((state) => ({
+      repositories: {
+        ...state.repositories,
+        [pathId]: { ...state.repositories[pathId], isLoading: true }
+      }
+    }))
+
+    try {
+      const response = await window.api.git.getStatus(repo.path)
+      if (response.success) {
+        get().updateRepositoryState(pathId, { 
+          files: response.data || [],
+          isLoading: false,
+          lastSyncedAt: Date.now()
+        })
+      } else {
+        get().updateRepositoryState(pathId, { 
+          error: response.error || 'Failed to get status',
+          isLoading: false
+        })
+      }
+    } catch (err: any) {
+      get().updateRepositoryState(pathId, { 
+        error: err.message,
+        isLoading: false
+      })
+    }
+  },
+
+  stageFile: async (id, filePath) => {
+    const pathId = normalizePath(id)
+    const repo = get().repositories[pathId]
+    if (!repo) return
+
+    // Optimistic update
+    set((state) => {
+      const nextFiles = state.repositories[pathId].files.map((f) =>
+        f.path === filePath ? { ...f, isStaged: true } : f
+      )
+      return {
+        repositories: {
+          ...state.repositories,
+          [pathId]: { ...state.repositories[pathId], files: nextFiles }
+        }
+      }
     })
+
+    try {
+      const response = await window.api.git.add(repo.path, [filePath])
+      if (!response.success) {
+        get().updateRepositoryState(pathId, { error: response.error || 'Failed to stage file' })
+        await get().refreshStatus(pathId) // Rollback by refreshing
+      } else {
+        await get().refreshStatus(pathId) // Sync state
+      }
+    } catch (err: any) {
+      get().updateRepositoryState(pathId, { error: err.message })
+      await get().refreshStatus(pathId)
+    }
+  },
+
+  unstageFile: async (id, filePath) => {
+    const pathId = normalizePath(id)
+    const repo = get().repositories[pathId]
+    if (!repo) return
+
+    // Optimistic update
+    set((state) => {
+      const nextFiles = state.repositories[pathId].files.map((f) =>
+        f.path === filePath ? { ...f, isStaged: false } : f
+      )
+      return {
+        repositories: {
+          ...state.repositories,
+          [pathId]: { ...state.repositories[pathId], files: nextFiles }
+        }
+      }
+    })
+
+    try {
+      const response = await window.api.git.reset(repo.path, [filePath])
+      if (!response.success) {
+        get().updateRepositoryState(pathId, { error: response.error || 'Failed to unstage file' })
+        await get().refreshStatus(pathId)
+      } else {
+        await get().refreshStatus(pathId)
+      }
+    } catch (err: any) {
+      get().updateRepositoryState(pathId, { error: err.message })
+      await get().refreshStatus(pathId)
+    }
+  }
 }))
 
 // Derived selector for active repository
