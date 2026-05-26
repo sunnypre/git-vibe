@@ -1,7 +1,7 @@
 import { ipcMain } from 'electron'
 import { IPC_EVENTS } from '../shared/types/IpcEvents'
 import { GitExecutor } from './services/GitExecutor'
-import { IpcResponse } from '../shared/types/GitModels'
+import { IpcResponse, GitFile, GitDiff } from '../shared/types/GitModels'
 
 export function registerIpcHandlers(): void {
   const gitExecutor = GitExecutor.getInstance()
@@ -45,6 +45,24 @@ export function registerIpcHandlers(): void {
       return { success: false, error: error.message }
     }
   })
+
+  // Diff
+  ipcMain.handle(
+    IPC_EVENTS.GIT.DIFF,
+    async (
+      _,
+      repoPath: string,
+      filePath: string,
+      options: { staged?: boolean; untracked?: boolean }
+    ): Promise<IpcResponse<GitDiff>> => {
+      try {
+        const diff = await gitExecutor.getDiff(repoPath, filePath, options)
+        return { success: true, data: diff }
+      } catch (error: any) {
+        return { success: false, error: error.message }
+      }
+    }
+  )
 
   // Add more handlers as needed for other events in IPC_EVENTS.GIT
 }

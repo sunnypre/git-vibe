@@ -14,6 +14,18 @@ export interface GitRepository {
   currentBranch: string
 }
 
+export interface GitDiffLine {
+  content: string
+  type: 'addition' | 'deletion' | 'context' | 'header'
+  lineNumber?: number
+  oldLineNumber?: number
+}
+
+export interface GitDiff {
+  filePath: string
+  lines: GitDiffLine[]
+}
+
 export interface IpcResponse<T = unknown> {
   success: boolean
   data?: T

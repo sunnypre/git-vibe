@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import { IPC_EVENTS } from '../shared/types/IpcEvents'
-import { GitFile, IpcResponse } from '../shared/types/GitModels'
+import { GitFile, GitDiff, IpcResponse } from '../shared/types/GitModels'
 
 // Custom APIs for renderer
 const api = {
@@ -10,6 +10,19 @@ const api = {
       if (!repoPath?.trim()) return { success: false, error: 'Invalid repository path' }
       try {
         return await ipcRenderer.invoke(IPC_EVENTS.GIT.STATUS, repoPath)
+      } catch (error: unknown) {
+        return { success: false, error: (error as Error).message }
+      }
+    },
+    getDiff: async (
+      repoPath: string,
+      filePath: string,
+      options: { staged?: boolean; untracked?: boolean }
+    ): Promise<IpcResponse<GitDiff>> => {
+      if (!repoPath?.trim()) return { success: false, error: 'Invalid repository path' }
+      if (!filePath?.trim()) return { success: false, error: 'Invalid file path' }
+      try {
+        return await ipcRenderer.invoke(IPC_EVENTS.GIT.DIFF, repoPath, filePath, options)
       } catch (error: unknown) {
         return { success: false, error: (error as Error).message }
       }

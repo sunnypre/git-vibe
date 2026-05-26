@@ -111,6 +111,48 @@ describe('GitExecutor.parsePorcelainStatus', () => {
   })
 })
 
+describe('GitExecutor.parseDiff', () => {
+  it('should parse a simple diff', () => {
+    const diffOutput = `diff --git a/test.txt b/test.txt
+index e69de29..d00491f 100644
+--- a/test.txt
++++ b/test.txt
+@@ -1 +1,2 @@
+-old line
++new line
++another line
+ context line`
+    
+    const result = (GitExecutor as any).parseDiff(diffOutput)
+    
+    expect(result).toHaveLength(5)
+    expect(result[0].type).toBe('header')
+    expect(result[1]).toEqual({ content: '-old line', type: 'deletion', oldLineNumber: 1 })
+    expect(result[2]).toEqual({ content: '+new line', type: 'addition', lineNumber: 1 })
+    expect(result[3]).toEqual({ content: '+another line', type: 'addition', lineNumber: 2 })
+    expect(result[4]).toEqual({ content: ' context line', type: 'context', lineNumber: 3, oldLineNumber: 2 })
+  })
+
+  it('should parse a diff with multiple chunks', () => {
+    const diffOutput = `@@ -1,2 +1,2 @@
+ line1
+-line2
++line2 modified
+@@ -10,3 +10,4 @@
+ line10
++line11
+ line12
+ line13`
+
+    const result = (GitExecutor as any).parseDiff(diffOutput)
+    expect(result.filter(l => l.type === 'header')).toHaveLength(2)
+    
+    const secondChunkHeader = result.find(l => l.content.includes('@@ -10,3 +10,4 @@'))
+    const nextLine = result[result.indexOf(secondChunkHeader) + 1]
+    expect(nextLine).toEqual({ content: ' line10', type: 'context', lineNumber: 10, oldLineNumber: 10 })
+  })
+})
+
 describe('GitExecutor mutations', () => {
   it('should call git add with correct arguments including separator', async () => {
     const executor = GitExecutor.getInstance()

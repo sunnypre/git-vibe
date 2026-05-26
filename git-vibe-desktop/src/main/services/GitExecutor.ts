@@ -1,6 +1,6 @@
 import { execFile } from 'child_process'
 import { promisify } from 'util'
-import { GitFile, GitFileStatus } from '../../shared/types/GitModels'
+import { GitFile, GitFileStatus, GitDiff, GitDiffLine } from '../../shared/types/GitModels'
 
 const execFileAsync = promisify(execFile)
 
@@ -210,4 +210,112 @@ export class GitExecutor {
     })
   }
 
+  /**
+   * Gets the diff for a specific file.
+   */
+  public async getDiff(
+    repoPath: string,
+    filePath: string,
+    options: { staged?: boolean; untracked?: boolean }
+  ): Promise<GitDiff> {
+    return this.queueCommand(async () => {
+      let args: string[] = []
+
+      if (options.untracked) {
+        // For untracked files, we simulate a diff against an empty file
+        args = ['diff', '--no-index', '--', '/dev/null', filePath]
+      } else if (options.staged) {
+        args = ['diff', '--cached', '--', filePath]
+      } else {
+        args = ['diff', '--', filePath]
+      }
+
+      try {
+        const { stdout } = await this.execute(repoPath, args)
+        return {
+          filePath,
+          lines: GitExecutor.parseDiff(stdout)
+        }
+      } catch (error: any) {
+        // git diff --no-index exits with 1 if there are differences, which is expected
+        if (options.untracked && error.message.includes('exit code 1')) {
+          return {
+            filePath,
+            lines: GitExecutor.parseDiff(error.stdout || '')
+          }
+        }
+        // If it's a new file and not yet staged, and we didn't use --no-index, it might fail
+        // but typically getDiff is called with the right flags.
+        throw error
+      }
+    })
+  }
+
+  /**
+   * Parses standard unified diff output into GitDiffLine objects.
+   */
+  private static parseDiff(stdout: string): GitDiffLine[] {
+    const lines = stdout.split('\n')
+    const diffLines: GitDiffLine[] = []
+
+    let headerPassed = false
+    let oldLineNum = 0
+    let newLineNum = 0
+
+    for (const line of lines) {
+      if (line.startsWith('@@')) {
+        headerPassed = true
+        // Parse chunk header: @@ -1,4 +1,5 @@
+        const match = line.match(/@@ -(\d+),?\d* \+(\d+),?\d* @@/)
+        if (match) {
+          oldLineNum = parseInt(match[1], 10)
+          newLineNum = parseInt(match[2], 10)
+        }
+        diffLines.push({ content: line, type: 'header' })
+        continue
+      }
+
+      if (!headerPassed) {
+        if (
+          line.startsWith('---') ||
+          line.startsWith('+++') ||
+          line.startsWith('diff --git') ||
+          line.startsWith('index')
+        ) {
+          continue
+        }
+        // If we haven't seen @@ yet, it's still header info
+        continue
+      }
+
+      // Check for EOF newline warning which we should skip or handle
+      if (line.startsWith('\\ No newline at end of file')) continue
+
+      if (line.startsWith('+')) {
+        diffLines.push({
+          content: line,
+          type: 'addition',
+          lineNumber: newLineNum++
+        })
+      } else if (line.startsWith('-')) {
+        diffLines.push({
+          content: line,
+          type: 'deletion',
+          oldLineNumber: oldLineNum++
+        })
+      } else if (line.startsWith(' ') || line === '') {
+        diffLines.push({
+          content: line,
+          type: 'context',
+          lineNumber: newLineNum++,
+          oldLineNumber: oldLineNum++
+        })
+      } else {
+        // Unexpected line, treat as context or ignore?
+        // Some diffs have extra lines.
+      }
+    }
+
+    return diffLines
+  }
 }

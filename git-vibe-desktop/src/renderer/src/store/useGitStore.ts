@@ -1,8 +1,11 @@
 import { create } from 'zustand'
-import { GitRepository, GitFile } from '../../../shared/types/GitModels'
+import { GitRepository, GitFile, GitDiffLine } from '../../../shared/types/GitModels'
 
 export interface RepositorySlice extends GitRepository {
   files: GitFile[]
+  selectedFilePath: string | null
+  diffContent: GitDiffLine[] | null
+  isDiffLoading: boolean
   isLoading: boolean
   isRefreshing: boolean
   error: string | null
@@ -21,6 +24,8 @@ export interface GitActions {
   updateRepositoryState: (id: string, updates: Partial<RepositorySlice>) => void
   refreshBranch: (id: string) => Promise<void>
   refreshStatus: (id: string) => Promise<void>
+  selectFile: (id: string, path: string | null) => void
+  fetchDiff: (id: string, path: string) => Promise<void>
   stageFile: (id: string, path: string) => Promise<void>
   unstageFile: (id: string, path: string) => Promise<void>
 }
@@ -56,6 +61,9 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
         name,
         currentBranch: 'loading...',
         files: [],
+        selectedFilePath: null,
+        diffContent: null,
+        isDiffLoading: false,
         isLoading: false,
         isRefreshing: false,
         error: null,
@@ -187,6 +195,60 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
       get().updateRepositoryState(pathId, { 
         error: err.message,
         isLoading: false
+      })
+    }
+  },
+
+  selectFile: (id, filePath) => {
+    const pathId = normalizePath(id)
+    const repo = get().repositories[pathId]
+    if (!repo) return
+
+    get().updateRepositoryState(pathId, { 
+      selectedFilePath: filePath,
+      diffContent: null // Clear previous diff
+    })
+
+    if (filePath) {
+      get().fetchDiff(pathId, filePath)
+    }
+  },
+
+  fetchDiff: async (id, filePath) => {
+    const pathId = normalizePath(id)
+    const repo = get().repositories[pathId]
+    if (!repo || repo.isDiffLoading) return
+
+    get().updateRepositoryState(pathId, { isDiffLoading: true })
+
+    const file = repo.files.find((f) => f.path === filePath)
+    if (!file) {
+      get().updateRepositoryState(pathId, { isDiffLoading: false })
+      return
+    }
+
+    const options = {
+      staged: file.isStaged,
+      untracked: file.unstagedStatus === 'untracked'
+    }
+
+    try {
+      const response = await window.api.git.getDiff(repo.path, filePath, options)
+      if (response.success && response.data) {
+        get().updateRepositoryState(pathId, { 
+          diffContent: response.data.lines,
+          isDiffLoading: false 
+        })
+      } else {
+        get().updateRepositoryState(pathId, { 
+          error: response.error || 'Failed to fetch diff',
+          isDiffLoading: false 
+        })
+      }
+    } catch (err: any) {
+      get().updateRepositoryState(pathId, { 
+        error: err.message,
+        isDiffLoading: false 
       })
     }
   },

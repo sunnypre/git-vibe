@@ -4,6 +4,7 @@ import { GitBranch, Plus, X, FileDiff, Terminal as TerminalIcon } from 'lucide-r
 import { ResizeHandle } from './components/ResizeHandle'
 import { useGitStore, useActiveRepo } from './store/useGitStore'
 import { FileList } from './features/Staging/FileList'
+import { DiffViewer } from './features/Staging/DiffViewer'
 
 function App(): React.JSX.Element {
   const { repositories, activeRepoId, addRepository, setActiveRepository, removeRepository } = useGitStore()
@@ -101,8 +102,8 @@ function App(): React.JSX.Element {
                           Diff Explorer
                         </h2>
                       </div>
-                      <div className="flex-1 p-4 flex items-center justify-center text-muted-foreground italic text-sm">
-                        Select a file to view changes
+                      <div className="flex-1 min-h-0">
+                        <DiffViewer />
                       </div>
                     </div>
                   </Panel>

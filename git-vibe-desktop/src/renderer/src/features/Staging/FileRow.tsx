@@ -1,7 +1,7 @@
 import { GitFile } from '../../../../shared/types/GitModels'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
-import { useGitStore } from '../../store/useGitStore'
+import { useGitStore, useActiveRepo } from '../../store/useGitStore'
 
 function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs))
@@ -12,7 +12,10 @@ interface FileRowProps {
 }
 
 export const FileRow = ({ file }: FileRowProps): React.JSX.Element => {
-  const { activeRepoId, stageFile, unstageFile } = useGitStore()
+  const { activeRepoId, stageFile, unstageFile, selectFile } = useGitStore()
+  const activeRepo = useActiveRepo()
+  const isSelected = activeRepo?.selectedFilePath === file.path
+
   const stagedCode = file.stagedStatus !== 'none' ? file.stagedStatus : null
   const unstagedCode = file.unstagedStatus !== 'none' ? file.unstagedStatus : null
   
@@ -63,13 +66,19 @@ export const FileRow = ({ file }: FileRowProps): React.JSX.Element => {
       e.preventDefault()
       handleToggle(e)
     }
+    if (e.code === 'Enter' || e.code === 'ArrowRight') {
+      if (activeRepoId) selectFile(activeRepoId, file.path)
+    }
   }
 
   return (
     <div 
-      className="group flex items-center gap-2 px-2 py-1.5 hover:bg-muted/50 cursor-pointer text-xs transition-colors border-b border-muted/5 outline-none focus-within:bg-muted/30"
+      className={cn(
+        "group flex items-center gap-2 px-2 py-1.5 hover:bg-muted/50 cursor-pointer text-xs transition-colors border-b border-muted/5 outline-none",
+        isSelected ? "bg-muted/80 border-l-2 border-l-primary" : "focus-within:bg-muted/30"
+      )}
       onClick={() => {
-        // Selection logic should go here
+        if (activeRepoId) selectFile(activeRepoId, file.path)
       }}
       onKeyDown={handleKeyDown}
       tabIndex={0}
@@ -87,7 +96,7 @@ export const FileRow = ({ file }: FileRowProps): React.JSX.Element => {
         {getStatusInitial(primaryStatus)}
       </div>
       <div className="flex-1 truncate flex items-center gap-2 min-w-0">
-        <span className="truncate text-foreground/80 group-hover:text-foreground" title={file.path}>
+        <span className={cn("truncate group-hover:text-foreground transition-colors", isSelected ? "text-foreground font-medium" : "text-foreground/80")} title={file.path}>
           {file.path}
         </span>
         {file.oldPath && (
