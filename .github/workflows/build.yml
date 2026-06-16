@@ -32,6 +32,11 @@ jobs:
           cache: 'pnpm'
           cache-dependency-path: git-vibe-desktop/pnpm-lock.yaml
 
+      - name: Set up Python (for node-gyp compatibility)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
