@@ -16,6 +16,21 @@ declare global {
         reset: (repoPath: string, files: string[]) => Promise<IpcResponse>
         commit: (repoPath: string, message: string) => Promise<IpcResponse>
         getCurrentBranch: (repoPath: string) => Promise<IpcResponse<string>>
+        checkout: (repoPath: string, target: string) => Promise<IpcResponse>
+        selectDirectory: () => Promise<string | null>
+        getBranches: (repoPath: string) => Promise<IpcResponse<string[]>>
+        createBranch: (repoPath: string, name: string) => Promise<IpcResponse>
+        push: (repoPath: string, branch: string) => Promise<IpcResponse>
+        getStoredRepositories: () => Promise<IpcResponse<string[]>>
+        storeRepositories: (paths: string[]) => Promise<IpcResponse>
+        onRefresh: (callback: (repoPath: string) => void) => () => void
+      }
+      terminal: {
+        create: (repoId: string, repoPath: string) => Promise<void>
+        write: (repoId: string, data: string) => void
+        resize: (repoId: string, cols: number, rows: number) => void
+        close: (repoId: string) => void
+        onData: (callback: (payload: { repoId: string; data: string }) => void) => () => void
       }
     }
   }

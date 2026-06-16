@@ -211,6 +211,67 @@ export class GitExecutor {
   }
 
   /**
+   * Checks out a branch or file.
+   */
+  public async checkout(repoPath: string, target: string): Promise<void> {
+    await this.queueCommand(async () => {
+      await this.execute(repoPath, ['checkout', target])
+    })
+  }
+
+  /**
+   * Gets a list of local branches.
+   */
+  public async getBranches(repoPath: string): Promise<string[]> {
+    return this.queueCommand(async () => {
+      const { stdout } = await this.execute(repoPath, ['branch', '--format=%(refname:short)'])
+      return stdout
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean)
+    })
+  }
+
+  /**
+   * Creates a new branch and checks it out.
+   */
+  public async createBranch(repoPath: string, branchName: string): Promise<void> {
+    await this.queueCommand(async () => {
+      await this.execute(repoPath, ['checkout', '-b', branchName])
+    })
+  }
+
+  /**
+   * Commits the staged changes.
+   */
+  public async commit(repoPath: string, message: string): Promise<void> {
+    await this.queueCommand(async () => {
+      await this.execute(repoPath, ['commit', '-m', message])
+    })
+  }
+
+  /**
+   * Pushes the active branch to its remote. If no upstream is configured, pushes and tracks origin.
+   */
+  public async push(repoPath: string, branchName: string): Promise<void> {
+    await this.queueCommand(async () => {
+      let hasUpstream = false
+      try {
+        await this.execute(repoPath, ['rev-parse', '--abbrev-ref', `${branchName}@{u}`])
+        hasUpstream = true
+      } catch {
+        // No upstream tracking branch found
+      }
+
+      if (hasUpstream) {
+        await this.execute(repoPath, ['push'])
+      } else {
+        await this.execute(repoPath, ['push', '-u', 'origin', branchName])
+      }
+    })
+  }
+
+  /**
    * Gets the diff for a specific file.
    */
   public async getDiff(

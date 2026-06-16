@@ -39,14 +39,14 @@ test('renders multiple tabs and allows switching', async () => {
   expect(screen.getByText('repo-2')).toBeInTheDocument()
 
   // repo-2 should be active (since it was added last)
-  expect(screen.getByText(/Terminal connected to \/test\/repo-2/i)).toBeInTheDocument()
+  expect(screen.getByRole('tab', { selected: true })).toHaveTextContent('repo-2')
 
   // Switch to repo-1
   act(() => {
     useGitStore.getState().setActiveRepository('/test/repo-1')
   })
 
-  expect(screen.getByText(/Terminal connected to \/test\/repo-1/i)).toBeInTheDocument()
+  expect(screen.getByRole('tab', { selected: true })).toHaveTextContent('repo-1')
 })
 
 test('allows closing a tab', () => {
@@ -80,7 +80,7 @@ test('automatically switches focus when active tab is closed', () => {
   })
 
   // repo-2 is active
-  expect(screen.getByText(/Terminal connected to \/test\/repo-2/i)).toBeInTheDocument()
+  expect(screen.getByRole('tab', { selected: true })).toHaveTextContent('repo-2')
 
   // Close repo-2
   const closeBtn2 = screen.getByLabelText(/Close repo-2/i)
@@ -91,5 +91,99 @@ test('automatically switches focus when active tab is closed', () => {
 
   expect(screen.queryByText('repo-2')).not.toBeInTheDocument()
   // Should have switched to repo-1
-  expect(screen.getByText(/Terminal connected to \/test\/repo-1/i)).toBeInTheDocument()
+  expect(screen.getByRole('tab', { selected: true })).toHaveTextContent('repo-1')
+})
+
+test('renders master checkbox in changes header and stages/unstages all files', async () => {
+  render(<App />)
+
+  act(() => {
+    useGitStore.getState().addRepository('/test/repo-1')
+  })
+
+  const path = '/test/repo-1'
+  const initialFiles = [
+    { path: 'fileA.txt', stagedStatus: 'none' as any, unstagedStatus: 'modified' as any, isStaged: false },
+    { path: 'fileB.txt', stagedStatus: 'none' as any, unstagedStatus: 'added' as any, isStaged: false }
+  ]
+  
+  act(() => {
+    useGitStore.getState().updateRepositoryState(path, { files: initialFiles })
+  })
+
+  // Master checkbox should not be checked since no files are staged
+  const checkbox = screen.getByTitle('Stage all changes') as HTMLInputElement
+  expect(checkbox).toBeInTheDocument()
+  expect(checkbox.checked).toBe(false)
+  expect(checkbox.indeterminate).toBe(false)
+
+  // Stage one file to test indeterminate state
+  act(() => {
+    useGitStore.getState().updateRepositoryState(path, {
+      files: [
+        { path: 'fileA.txt', stagedStatus: 'modified' as any, unstagedStatus: 'none' as any, isStaged: true },
+        { path: 'fileB.txt', stagedStatus: 'none' as any, unstagedStatus: 'added' as any, isStaged: false }
+      ]
+    })
+  })
+
+  // Should render as indeterminate (which sets input.indeterminate = true)
+  expect(checkbox.checked).toBe(false)
+  expect(checkbox.indeterminate).toBe(true)
+
+  // Toggle master checkbox to stage all
+  act(() => {
+    fireEvent.click(checkbox)
+  })
+
+  expect(useGitStore.getState().repositories[path].files.every((f) => f.isStaged)).toBe(true)
+})
+
+test('toggles search panel visibility and search filtering via Ctrl+F and UI controls', () => {
+  render(<App />)
+
+  const path = '/test/repo-1'
+  act(() => {
+    useGitStore.getState().addRepository(path)
+    useGitStore.getState().updateRepositoryState(path, {
+      files: [
+        { path: 'src/main.ts', stagedStatus: 'none', unstagedStatus: 'modified', isStaged: false },
+        { path: 'package.json', stagedStatus: 'none', unstagedStatus: 'modified', isStaged: false }
+      ]
+    })
+  })
+
+  // Search input should not be visible initially
+  expect(screen.queryByPlaceholderText('Search files...')).not.toBeInTheDocument()
+
+  // Press Ctrl+F
+  act(() => {
+    fireEvent.keyDown(window, { ctrlKey: true, key: 'f' })
+  })
+
+  // Search input should be visible now
+  const searchInput = screen.getByPlaceholderText('Search files...') as HTMLInputElement
+  expect(searchInput).toBeInTheDocument()
+
+  // Type in search box to filter files
+  act(() => {
+    fireEvent.change(searchInput, { target: { value: 'package' } })
+  })
+
+  // Should filter out src/main.ts, leaving package.json
+  expect(screen.queryByText('src/main.ts')).not.toBeInTheDocument()
+  expect(screen.getByText('package.json')).toBeInTheDocument()
+
+  // Press Escape to close search and clear query
+  act(() => {
+    fireEvent.keyDown(searchInput, { key: 'Escape' })
+  })
+
+  // Search input should be closed
+  expect(screen.queryByPlaceholderText('Search files...')).not.toBeInTheDocument()
+  expect(useGitStore.getState().repositories[path].searchQuery).toBe('')
+
+  // Verify full files list is visible again
+  expect(screen.getByText('src/main.ts')).toBeInTheDocument()
+  expect(screen.getByText('package.json')).toBeInTheDocument()
 })

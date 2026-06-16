@@ -61,6 +61,93 @@ const api = {
       } catch (error: unknown) {
         return { success: false, error: (error as Error).message }
       }
+    },
+    checkout: async (repoPath: string, target: string): Promise<IpcResponse> => {
+      if (!repoPath?.trim()) return { success: false, error: 'Invalid repository path' }
+      if (!target?.trim()) return { success: false, error: 'Target branch/file required' }
+      try {
+        return await ipcRenderer.invoke(IPC_EVENTS.GIT.CHECKOUT, repoPath, target)
+      } catch (error: unknown) {
+        return { success: false, error: (error as Error).message }
+      }
+    },
+    selectDirectory: async (): Promise<string | null> => {
+      try {
+        return await ipcRenderer.invoke('dialog:selectDirectory')
+      } catch (error: unknown) {
+        console.error('Failed to select directory:', error)
+        return null
+      }
+    },
+    getBranches: async (repoPath: string): Promise<IpcResponse<string[]>> => {
+      if (!repoPath?.trim()) return { success: false, error: 'Invalid repository path' }
+      try {
+        return await ipcRenderer.invoke('git:branches', repoPath)
+      } catch (error: unknown) {
+        return { success: false, error: (error as Error).message }
+      }
+    },
+    createBranch: async (repoPath: string, name: string): Promise<IpcResponse> => {
+      if (!repoPath?.trim()) return { success: false, error: 'Invalid repository path' }
+      if (!name?.trim()) return { success: false, error: 'Branch name required' }
+      try {
+        return await ipcRenderer.invoke('git:createBranch', repoPath, name)
+      } catch (error: unknown) {
+        return { success: false, error: (error as Error).message }
+      }
+    },
+    push: async (repoPath: string, branch: string): Promise<IpcResponse> => {
+      if (!repoPath?.trim()) return { success: false, error: 'Invalid repository path' }
+      if (!branch?.trim()) return { success: false, error: 'Branch name required' }
+      try {
+        return await ipcRenderer.invoke(IPC_EVENTS.GIT.PUSH, repoPath, branch)
+      } catch (error: unknown) {
+        return { success: false, error: (error as Error).message }
+      }
+    },
+    getStoredRepositories: async (): Promise<IpcResponse<string[]>> => {
+      try {
+        return await ipcRenderer.invoke('git:getStoredRepositories')
+      } catch (error: unknown) {
+        return { success: false, error: (error as Error).message }
+      }
+    },
+    storeRepositories: async (paths: string[]): Promise<IpcResponse> => {
+      try {
+        return await ipcRenderer.invoke('git:storeRepositories', paths)
+      } catch (error: unknown) {
+        return { success: false, error: (error as Error).message }
+      }
+    },
+    onRefresh: (callback: (repoPath: string) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, repoPath: string) => callback(repoPath)
+      ipcRenderer.on(IPC_EVENTS.GIT.REFRESH, handler)
+      return () => {
+        ipcRenderer.removeListener(IPC_EVENTS.GIT.REFRESH, handler)
+      }
+    }
+  },
+  terminal: {
+    create: async (repoId: string, repoPath: string): Promise<void> => {
+      await ipcRenderer.invoke('terminal:create', repoId, repoPath)
+    },
+    write: (repoId: string, data: string): void => {
+      ipcRenderer.send('terminal:write', repoId, data)
+    },
+    resize: (repoId: string, cols: number, rows: number): void => {
+      ipcRenderer.send('terminal:resize', repoId, cols, rows)
+    },
+    close: (repoId: string): void => {
+      ipcRenderer.send('terminal:close', repoId)
+    },
+    onData: (callback: (payload: { repoId: string; data: string }) => void): () => void => {
+      const handler = (_event: Electron.IpcRendererEvent, payload: { repoId: string; data: string }) => {
+        callback(payload)
+      }
+      ipcRenderer.on('terminal:data', handler)
+      return () => {
+        ipcRenderer.removeListener('terminal:data', handler)
+      }
     }
   }
 }

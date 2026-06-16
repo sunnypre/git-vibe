@@ -51,7 +51,7 @@ export const DiffViewer: React.FC = () => {
   }
 
   return (
-    <ScrollArea.Root className="h-full w-full overflow-hidden bg-background">
+    <ScrollArea.Root className="h-full w-full overflow-hidden bg-background relative">
       <ScrollArea.Viewport className="h-full w-full">
         <div className="min-w-fit py-4 font-mono text-[13px] leading-relaxed select-text">
           {diffContent.map((line, index) => {
@@ -105,13 +105,13 @@ export const DiffViewer: React.FC = () => {
         </div>
       </ScrollArea.Viewport>
       <ScrollArea.Scrollbar
-        className="flex select-none touch-none p-0.5 bg-muted/5 transition-colors duration-[160ms] ease-out hover:bg-muted/10 data-[orientation=vertical]:w-2.5 data-[orientation=horizontal]:flex-col data-[orientation=horizontal]:h-2.5"
+        className="absolute right-0 top-0 bottom-0 flex select-none touch-none p-0.5 bg-muted/5 transition-colors duration-[160ms] ease-out hover:bg-muted/10 data-[orientation=vertical]:w-2.5 data-[orientation=horizontal]:flex-col data-[orientation=horizontal]:h-2.5"
         orientation="vertical"
       >
         <ScrollArea.Thumb className="flex-1 bg-muted-foreground/20 rounded-[10px] relative before:content-[''] before:absolute before:top-1/2 before:left-1/2 before:-translate-x-1/2 before:-translate-y-1/2 before:w-full before:h-full before:min-w-[44px] before:min-h-[44px]" />
       </ScrollArea.Scrollbar>
       <ScrollArea.Scrollbar
-        className="flex select-none touch-none p-0.5 bg-muted/5 transition-colors duration-[160ms] ease-out hover:bg-muted/10 data-[orientation=vertical]:w-2.5 data-[orientation=horizontal]:flex-col data-[orientation=horizontal]:h-2.5"
+        className="absolute bottom-0 left-0 right-0 flex select-none touch-none p-0.5 bg-muted/5 transition-colors duration-[160ms] ease-out hover:bg-muted/10 data-[orientation=vertical]:w-2.5 data-[orientation=horizontal]:flex-col data-[orientation=horizontal]:h-2.5"
         orientation="horizontal"
       >
         <ScrollArea.Thumb className="flex-1 bg-muted-foreground/20 rounded-[10px] relative before:content-[''] before:absolute before:top-1/2 before:left-1/2 before:-translate-x-1/2 before:-translate-y-1/2 before:w-full before:h-full before:min-w-[44px] before:min-h-[44px]" />

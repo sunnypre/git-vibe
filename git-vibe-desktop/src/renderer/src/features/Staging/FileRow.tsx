@@ -88,6 +88,7 @@ export const FileRow = ({ file }: FileRowProps): React.JSX.Element => {
           type="checkbox" 
           checked={file.isStaged} 
           onChange={(e) => handleToggle(e)}
+          onClick={(e) => e.stopPropagation()}
           className="w-3.5 h-3.5 rounded border-muted-foreground/50 bg-transparent accent-[#007acc] cursor-pointer" 
         />
       </div>

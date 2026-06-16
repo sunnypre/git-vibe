@@ -10,11 +10,16 @@ export interface RepositorySlice extends GitRepository {
   isRefreshing: boolean
   error: string | null
   lastSyncedAt: number | null
+  branches: string[]
+  commitMessage: string
+  searchQuery: string
+  isSearchOpen: boolean
 }
 
 export interface GitState {
   repositories: Record<string, RepositorySlice>
   activeRepoId: string | null
+  toast: { message: string; type: 'success' | 'error' | 'info'; id: string } | null
 }
 
 export interface GitActions {
@@ -24,10 +29,22 @@ export interface GitActions {
   updateRepositoryState: (id: string, updates: Partial<RepositorySlice>) => void
   refreshBranch: (id: string) => Promise<void>
   refreshStatus: (id: string) => Promise<void>
+  refreshRepository: (id: string) => Promise<void>
   selectFile: (id: string, path: string | null) => void
   fetchDiff: (id: string, path: string) => Promise<void>
   stageFile: (id: string, path: string) => Promise<void>
   unstageFile: (id: string, path: string) => Promise<void>
+  setCommitMessage: (id: string, message: string) => void
+  refreshBranches: (id: string) => Promise<void>
+  createBranch: (id: string, branchName: string) => Promise<void>
+  commitChanges: (id: string, message: string) => Promise<void>
+  pushChanges: (id: string) => Promise<void>
+  showToast: (message: string, type?: 'success' | 'error' | 'info') => void
+  clearToast: () => void
+  stageAllFiles: (id: string) => Promise<void>
+  unstageAllFiles: (id: string) => Promise<void>
+  setSearchQuery: (id: string, query: string) => void
+  setSearchOpen: (id: string, isOpen: boolean) => void
 }
 
 const normalizePath = (p: string): string => {
@@ -38,13 +55,13 @@ const normalizePath = (p: string): string => {
     normalized = normalized.replace(/\/+$/, '')
   }
   if (normalized === '') normalized = '/'
-  // Note: We no longer lowercase to prevent collisions on case-sensitive filesystems
   return normalized
 }
 
 export const useGitStore = create<GitState & GitActions>((set, get) => ({
   repositories: {},
   activeRepoId: null,
+  toast: null,
 
   addRepository: (rawPath) => {
     if (!rawPath || !rawPath.trim()) return
@@ -57,7 +74,7 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
 
       const name = rawPath.split(/[\\/]/).filter(Boolean).pop() || 'Root'
       const newRepo: RepositorySlice = {
-        path: rawPath, // Store the original path for display/commands
+        path: rawPath,
         name,
         currentBranch: 'loading...',
         files: [],
@@ -67,7 +84,11 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
         isLoading: false,
         isRefreshing: false,
         error: null,
-        lastSyncedAt: Date.now()
+        lastSyncedAt: Date.now(),
+        branches: [],
+        commitMessage: '',
+        searchQuery: '',
+        isSearchOpen: false
       }
 
       return {
@@ -76,9 +97,14 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
       }
     })
     
-    // Trigger branch and status refresh
+    // Save to storage
+    const repoPaths = Object.values(get().repositories).map((r) => r.path)
+    window.api.git.storeRepositories(repoPaths)
+    
+    // Trigger refreshes
     get().refreshBranch(path)
     get().refreshStatus(path)
+    get().refreshBranches(path)
   },
 
   setActiveRepository: (id) => {
@@ -87,10 +113,18 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
     if (id) {
       get().refreshBranch(id)
       get().refreshStatus(id)
+      get().refreshBranches(id)
     }
   },
 
-  removeRepository: (id) =>
+  removeRepository: (id) => {
+    // Close terminal process on backend
+    try {
+      window.api.terminal.close(id)
+    } catch (err) {
+      console.error('Failed to close terminal on repo remove:', err)
+    }
+
     set((state) => {
       const repoIds = Object.keys(state.repositories)
       const currentIndex = repoIds.indexOf(id)
@@ -100,7 +134,6 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
 
       let nextActiveId = state.activeRepoId
       if (state.activeRepoId === id) {
-        // Find adjacent tab: prefer the one to the right, otherwise the one to the left
         const remainingIds = Object.keys(nextRepositories)
         if (remainingIds.length === 0) {
           nextActiveId = null
@@ -114,7 +147,12 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
         repositories: nextRepositories,
         activeRepoId: nextActiveId
       }
-    }),
+    })
+
+    // Save to storage
+    const repoPaths = Object.values(get().repositories).map((r) => r.path)
+    window.api.git.storeRepositories(repoPaths)
+  },
 
   updateRepositoryState: (id, updates) =>
     set((state) => {
@@ -155,6 +193,7 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
           error: response.error || 'Failed to get branch',
           isRefreshing: false
         })
+        get().showToast(response.error || 'Failed to get branch', 'error')
       }
     } catch (err: any) {
       get().updateRepositoryState(pathId, { 
@@ -162,6 +201,7 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
         error: err.message,
         isRefreshing: false
       })
+      get().showToast(err.message, 'error')
     }
   },
 
@@ -190,13 +230,24 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
           error: response.error || 'Failed to get status',
           isLoading: false
         })
+        get().showToast(response.error || 'Failed to get status', 'error')
       }
     } catch (err: any) {
       get().updateRepositoryState(pathId, { 
         error: err.message,
         isLoading: false
       })
+      get().showToast(err.message, 'error')
     }
+  },
+
+  refreshRepository: async (id) => {
+    const pathId = normalizePath(id)
+    await Promise.all([
+      get().refreshBranch(pathId),
+      get().refreshStatus(pathId),
+      get().refreshBranches(pathId)
+    ])
   },
 
   selectFile: (id, filePath) => {
@@ -206,7 +257,7 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
 
     get().updateRepositoryState(pathId, { 
       selectedFilePath: filePath,
-      diffContent: null // Clear previous diff
+      diffContent: null
     })
 
     if (filePath) {
@@ -244,12 +295,14 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
           error: response.error || 'Failed to fetch diff',
           isDiffLoading: false 
         })
+        get().showToast(response.error || 'Failed to fetch diff', 'error')
       }
     } catch (err: any) {
       get().updateRepositoryState(pathId, { 
         error: err.message,
         isDiffLoading: false 
       })
+      get().showToast(err.message, 'error')
     }
   },
 
@@ -258,7 +311,6 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
     const repo = get().repositories[pathId]
     if (!repo) return
 
-    // Optimistic update
     set((state) => {
       const nextFiles = state.repositories[pathId].files.map((f) =>
         f.path === filePath ? { ...f, isStaged: true } : f
@@ -274,13 +326,17 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
     try {
       const response = await window.api.git.add(repo.path, [filePath])
       if (!response.success) {
-        get().updateRepositoryState(pathId, { error: response.error || 'Failed to stage file' })
-        await get().refreshStatus(pathId) // Rollback by refreshing
+        get().showToast(response.error || 'Failed to stage file', 'error')
+        await get().refreshStatus(pathId)
       } else {
-        await get().refreshStatus(pathId) // Sync state
+        await get().refreshStatus(pathId)
+        // Refresh diff if the staged file was currently selected
+        if (repo.selectedFilePath === filePath) {
+          get().fetchDiff(pathId, filePath)
+        }
       }
     } catch (err: any) {
-      get().updateRepositoryState(pathId, { error: err.message })
+      get().showToast(err.message, 'error')
       await get().refreshStatus(pathId)
     }
   },
@@ -290,7 +346,6 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
     const repo = get().repositories[pathId]
     if (!repo) return
 
-    // Optimistic update
     set((state) => {
       const nextFiles = state.repositories[pathId].files.map((f) =>
         f.path === filePath ? { ...f, isStaged: false } : f
@@ -306,19 +361,177 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
     try {
       const response = await window.api.git.reset(repo.path, [filePath])
       if (!response.success) {
-        get().updateRepositoryState(pathId, { error: response.error || 'Failed to unstage file' })
+        get().showToast(response.error || 'Failed to unstage file', 'error')
         await get().refreshStatus(pathId)
       } else {
         await get().refreshStatus(pathId)
+        // Refresh diff if the unstaged file was currently selected
+        if (repo.selectedFilePath === filePath) {
+          get().fetchDiff(pathId, filePath)
+        }
       }
     } catch (err: any) {
-      get().updateRepositoryState(pathId, { error: err.message })
+      get().showToast(err.message, 'error')
       await get().refreshStatus(pathId)
     }
+  },
+
+  setCommitMessage: (id, message) => {
+    get().updateRepositoryState(id, { commitMessage: message })
+  },
+
+  refreshBranches: async (id) => {
+    const pathId = normalizePath(id)
+    const repo = get().repositories[pathId]
+    if (!repo) return
+
+    try {
+      const response = await window.api.git.getBranches(repo.path)
+      if (response.success && response.data) {
+        get().updateRepositoryState(pathId, {
+          branches: response.data,
+          lastSyncedAt: Date.now()
+        })
+      } else {
+        get().showToast(response.error || 'Failed to get branches', 'error')
+      }
+    } catch (err: any) {
+      get().showToast(err.message, 'error')
+    }
+  },
+
+  createBranch: async (id, branchName) => {
+    const pathId = normalizePath(id)
+    const repo = get().repositories[pathId]
+    if (!repo) return
+
+    try {
+      const response = await window.api.git.createBranch(repo.path, branchName)
+      if (response.success) {
+        get().showToast(`Branch "${branchName}" created and checked out!`, 'success')
+        await get().refreshRepository(pathId)
+      } else {
+        get().showToast(response.error || 'Failed to create branch', 'error')
+      }
+    } catch (err: any) {
+      get().showToast(err.message, 'error')
+    }
+  },
+
+  commitChanges: async (id, message) => {
+    const pathId = normalizePath(id)
+    const repo = get().repositories[pathId]
+    if (!repo) return
+
+    try {
+      const response = await window.api.git.commit(repo.path, message)
+      if (response.success) {
+        get().showToast('Changes committed successfully!', 'success')
+        get().updateRepositoryState(pathId, { commitMessage: '' }) // Clear draft
+        await get().refreshStatus(pathId)
+      } else {
+        get().showToast(response.error || 'Failed to commit changes', 'error')
+      }
+    } catch (err: any) {
+      get().showToast(err.message, 'error')
+    }
+  },
+
+  pushChanges: async (id) => {
+    const pathId = normalizePath(id)
+    const repo = get().repositories[pathId]
+    if (!repo) return
+
+    try {
+      const response = await window.api.git.push(repo.path, repo.currentBranch)
+      if (response.success) {
+        get().showToast(`Pushed "${repo.currentBranch}" upstream!`, 'success')
+        await get().refreshRepository(pathId)
+      } else {
+        get().showToast(response.error || 'Failed to push changes', 'error')
+      }
+    } catch (err: any) {
+      get().showToast(err.message, 'error')
+    }
+  },
+
+  showToast: (message, type = 'info') => {
+    set({
+      toast: {
+        message,
+        type,
+        id: Math.random().toString(36).substring(2, 9)
+      }
+    })
+  },
+
+  clearToast: () => {
+    set({ toast: null })
+  },
+
+  stageAllFiles: async (id) => {
+    const pathId = normalizePath(id)
+    const repo = get().repositories[pathId]
+    if (!repo || repo.files.length === 0) return
+
+    set((state) => {
+      const nextFiles = state.repositories[pathId].files.map((f) => ({ ...f, isStaged: true }))
+      return {
+        repositories: {
+          ...state.repositories,
+          [pathId]: { ...state.repositories[pathId], files: nextFiles }
+        }
+      }
+    })
+
+    try {
+      const response = await window.api.git.add(repo.path, ['.'])
+      if (!response.success) {
+        get().showToast(response.error || 'Failed to stage files', 'error')
+      }
+      await get().refreshStatus(pathId)
+    } catch (err: any) {
+      get().showToast(err.message, 'error')
+      await get().refreshStatus(pathId)
+    }
+  },
+
+  unstageAllFiles: async (id) => {
+    const pathId = normalizePath(id)
+    const repo = get().repositories[pathId]
+    if (!repo || repo.files.length === 0) return
+
+    set((state) => {
+      const nextFiles = state.repositories[pathId].files.map((f) => ({ ...f, isStaged: false }))
+      return {
+        repositories: {
+          ...state.repositories,
+          [pathId]: { ...state.repositories[pathId], files: nextFiles }
+        }
+      }
+    })
+
+    try {
+      const response = await window.api.git.reset(repo.path, ['.'])
+      if (!response.success) {
+        get().showToast(response.error || 'Failed to unstage files', 'error')
+      }
+      await get().refreshStatus(pathId)
+    } catch (err: any) {
+      get().showToast(err.message, 'error')
+      await get().refreshStatus(pathId)
+    }
+  },
+
+  setSearchQuery: (id, query) => {
+    get().updateRepositoryState(id, { searchQuery: query })
+  },
+
+  setSearchOpen: (id, isOpen) => {
+    get().updateRepositoryState(id, { isSearchOpen: isOpen })
   }
 }))
 
-// Derived selector for active repository
 export const useActiveRepo = () => {
   const { repositories, activeRepoId } = useGitStore()
   return activeRepoId ? repositories[activeRepoId] || null : null

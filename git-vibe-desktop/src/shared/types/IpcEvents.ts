@@ -6,7 +6,9 @@ export const IPC_EVENTS = {
     COMMIT: 'git:commit',
     PUSH: 'git:push',
     BRANCH: 'git:branch',
-    DIFF: 'git:diff'
+    DIFF: 'git:diff',
+    CHECKOUT: 'git:checkout',
+    REFRESH: 'git:refresh'
   },
   WINDOW: {
     MINIMIZE: 'window:minimize',
