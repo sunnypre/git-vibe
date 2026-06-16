@@ -10,14 +10,11 @@ on:
 
 jobs:
   build:
-    name: Build & Release (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
+    name: Build & Release (Windows)
+    runs-on: windows-latest
     defaults:
       run:
         working-directory: git-vibe-desktop
-    strategy:
-      matrix:
-        os: [macos-latest, windows-latest, ubuntu-latest]
 
     steps:
       - name: Checkout repository
@@ -26,7 +23,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: 'npm'
           cache-dependency-path: git-vibe-desktop/package-lock.json
 
@@ -42,6 +39,6 @@ jobs:
       - name: Package and Publish Electron App
         # Only publish to GitHub Releases on push to main branch
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: npx electron-builder --publish always
+        run: npx electron-builder --win --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
