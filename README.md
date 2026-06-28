@@ -1,53 +1,67 @@
-# GitVibe ✌️
+# GitVibe
 
-A surgical C# TUI for Git, built with .NET 10 and Spectre.Console.
+GitVibe is a lightweight vibecoded desktop Git command center for developers who want visual interface with possibility to execute raw git commands directly. So yes, just another Git tool, as if there were not enough already...
 
-## 🚀 Quick Install
+Anyways... i built because why not and use it in my day to day work. Feel free to open a issue if you enjoy it but find irritating bugs. There probably are a gazillion.
 
-GitVibe is built using **Native AOT**, meaning it compiles to a single, standalone executable with zero dependencies and instant startup.
+The app is an Electron desktop application with a sandboxed React renderer and a Node.js main process that runs pure Git commands through a typed preload bridge. UI includes a integrated terminal using xterm. 
 
-### 1. Build the Release
-Run this from the project root:
-```powershell
-dotnet publish -c Release
+## Installation
+
+Download the latest release from GitHub:
+
+https://github.com/sunnypre/git-vibe/releases
+
+Choose the installer or archive for your operating system, then run it like any other desktop app. GitVibe expects Git to be installed and available on your `PATH`.
+
+## Development Setup
+
+Requirements:
+
+- Git installed and available on your `PATH`
+- Node.js 20 or newer
+- pnpm installed globally:
+
+```bash
+npm install -g pnpm
 ```
 
-### 2. Locate the Executable
-The standalone file is generated at:
-`bin\Release\net10.0\win-x64\publish\GitVibe.exe`
+Clone the repository, or fork it on GitHub and clone your fork:
 
-### 3. Make it Global (Windows)
-To run `GitVibe` from any repository:
-1. Copy `GitVibe.exe` to a folder in your PATH (e.g., `C:\tools\`).
-2. (Optional) Rename it to `gv.exe` for faster typing.
-3. Open a new terminal and just type `gv` or `GitVibe`.
+```bash
+git clone https://github.com/sunnypre/git-vibe.git
+cd git-vibe/git-vibe-desktop
+pnpm install
+```
 
----
+Start the desktop app in development mode:
 
-## 🎮 Keybindings
-sdsds
-| Key | Action |
-| :--- | :--- |
-| `Tab` | Switch between **Staging** and **Branching** views |
-| `Space` | Toggle Stage/Unstage for selected file |
-| `C` | Open **Commit Overlay** (when files are staged) |
-| `Enter` | **Checkout** selected branch |
-| `B` | Create **New Branch** |
-| `Shift + G` | Open **Hybrid Command** (Run raw git commands) |
-| `R` | Manual Refresh |
-| `Esc` | Exit / Cancel |
+```bash
+pnpm run dev
+```
 
----
+Run checks:
 
-## 🛠 Development & Testing
+```bash
+pnpm run typecheck
+pnpm run test
+pnpm run lint
+```
 
-For detailed feature walkthroughs and testing scenarios, see the [TESTING_GUIDE.md](./TESTING_GUIDE.md).
+Build locally:
 
-### Requirements
-- .NET 10 SDK
-- Git CLI
+```bash
+pnpm run build
+```
 
----
+Platform-specific package scripts are also available:
 
-## 📝 License
-MIT
+```bash
+pnpm run build:win
+pnpm run build:mac
+pnpm run build:linux
+```
+
+## Notes
+
+GitVibe works on local Git repositories. Add a repository from the app, then use the file list to stage, inspect diffs, commit, switch branches, pull, and push changes upstream.
