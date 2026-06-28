@@ -4,6 +4,7 @@ import { GitRepository, GitFile, GitDiffLine } from '../../../shared/types/GitMo
 export interface RepositorySlice extends GitRepository {
   files: GitFile[]
   selectedFilePath: string | null
+  selectedFilePaths: string[]
   diffContent: GitDiffLine[] | null
   isDiffLoading: boolean
   isLoading: boolean
@@ -30,10 +31,11 @@ export interface GitActions {
   refreshBranch: (id: string) => Promise<void>
   refreshStatus: (id: string) => Promise<void>
   refreshRepository: (id: string) => Promise<void>
-  selectFile: (id: string, path: string | null) => void
+  selectFile: (id: string, path: string | null, multiSelect?: boolean) => void
   fetchDiff: (id: string, path: string) => Promise<void>
   stageFile: (id: string, path: string) => Promise<void>
   unstageFile: (id: string, path: string) => Promise<void>
+  revertFiles: (id: string, paths: string[]) => Promise<void>
   setCommitMessage: (id: string, message: string) => void
   refreshBranches: (id: string) => Promise<void>
   createBranch: (id: string, branchName: string) => Promise<void>
@@ -81,6 +83,7 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
         currentBranch: 'loading...',
         files: [],
         selectedFilePath: null,
+        selectedFilePaths: [],
         diffContent: null,
         isDiffLoading: false,
         isLoading: false,
@@ -222,11 +225,25 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
     try {
       const response = await window.api.git.getStatus(repo.path)
       if (response.success) {
+        const files = response.data || []
+        const availablePaths = new Set(files.map((file) => file.path))
+        const selectedFilePaths = repo.selectedFilePaths.filter((path) => availablePaths.has(path))
+        const selectedFilePath = repo.selectedFilePath && availablePaths.has(repo.selectedFilePath)
+          ? repo.selectedFilePath
+          : selectedFilePaths[0] || null
+
         get().updateRepositoryState(pathId, { 
-          files: response.data || [],
+          files,
+          selectedFilePath,
+          selectedFilePaths,
+          diffContent: selectedFilePath === repo.selectedFilePath ? repo.diffContent : null,
           isLoading: false,
           lastSyncedAt: Date.now()
         })
+
+        if (selectedFilePath && selectedFilePath !== repo.selectedFilePath) {
+          get().fetchDiff(pathId, selectedFilePath)
+        }
       } else {
         get().updateRepositoryState(pathId, { 
           error: response.error || 'Failed to get status',
@@ -252,18 +269,48 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
     ])
   },
 
-  selectFile: (id, filePath) => {
+  selectFile: (id, filePath, multiSelect = false) => {
     const pathId = normalizePath(id)
     const repo = get().repositories[pathId]
     if (!repo) return
 
+    if (!filePath) {
+      get().updateRepositoryState(pathId, {
+        selectedFilePath: null,
+        selectedFilePaths: [],
+        diffContent: null
+      })
+      return
+    }
+
+    let selectedFilePaths: string[]
+    let selectedFilePath: string | null = filePath
+
+    if (multiSelect) {
+      const isAlreadySelected = repo.selectedFilePaths.includes(filePath)
+      if (isAlreadySelected) {
+        selectedFilePaths = repo.selectedFilePaths.filter((path) => path !== filePath)
+        selectedFilePath = repo.selectedFilePath === filePath ? selectedFilePaths[0] || null : repo.selectedFilePath
+      } else {
+        selectedFilePaths = [...repo.selectedFilePaths, filePath]
+        selectedFilePath = filePath
+      }
+
+      if (selectedFilePaths.length === 0) {
+        selectedFilePath = null
+      }
+    } else {
+      selectedFilePaths = [filePath]
+    }
+
     get().updateRepositoryState(pathId, { 
-      selectedFilePath: filePath,
+      selectedFilePath,
+      selectedFilePaths,
       diffContent: null
     })
 
-    if (filePath) {
-      get().fetchDiff(pathId, filePath)
+    if (selectedFilePath) {
+      get().fetchDiff(pathId, selectedFilePath)
     }
   },
 
@@ -372,6 +419,29 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
           get().fetchDiff(pathId, filePath)
         }
       }
+    } catch (err: any) {
+      get().showToast(err.message, 'error')
+      await get().refreshStatus(pathId)
+    }
+  },
+
+  revertFiles: async (id, paths) => {
+    const pathId = normalizePath(id)
+    const repo = get().repositories[pathId]
+    const uniquePaths = Array.from(new Set(paths)).filter(Boolean)
+    if (!repo || uniquePaths.length === 0) return
+
+    try {
+      const response = await window.api.git.revertChanges(repo.path, uniquePaths)
+      if (response.success) {
+        get().showToast(
+          uniquePaths.length === 1 ? 'Reverted 1 file' : `Reverted ${uniquePaths.length} files`,
+          'success'
+        )
+      } else {
+        get().showToast(response.error || 'Failed to revert files', 'error')
+      }
+      await get().refreshStatus(pathId)
     } catch (err: any) {
       get().showToast(err.message, 'error')
       await get().refreshStatus(pathId)

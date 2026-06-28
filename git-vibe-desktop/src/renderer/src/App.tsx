@@ -28,7 +28,6 @@ function App(): React.JSX.Element {
     refreshRepository
   } = useGitStore()
   const activeRepo = useActiveRepo()
-  const repoList = Object.values(repositories)
 
   useEffect(() => {
     const handleFocus = () => {

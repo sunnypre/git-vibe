@@ -211,6 +211,60 @@ export class GitExecutor {
   }
 
   /**
+   * Discards staged and unstaged changes for the provided paths.
+   */
+  public async revertChanges(repoPath: string, paths: string[]): Promise<void> {
+    await this.queueCommand(async () => {
+      const uniquePaths = Array.from(new Set(paths)).filter(Boolean)
+      if (uniquePaths.length === 0) return
+
+      const { stdout } = await this.execute(repoPath, ['status', '--porcelain'])
+      const changedFiles = GitExecutor.parsePorcelainStatus(stdout)
+      const selectedPathSet = new Set(uniquePaths)
+      const selectedFiles = changedFiles.filter((file) =>
+        selectedPathSet.has(file.path) || (file.oldPath ? selectedPathSet.has(file.oldPath) : false)
+      )
+
+      if (selectedFiles.length === 0) return
+
+      const indexPaths = new Set<string>()
+      const restorePaths = new Set<string>()
+      const cleanPaths = new Set<string>()
+
+      for (const file of selectedFiles) {
+        if (file.isStaged) {
+          indexPaths.add(file.path)
+        }
+
+        if (file.stagedStatus === 'added' || file.unstagedStatus === 'untracked') {
+          cleanPaths.add(file.path)
+          continue
+        }
+
+        if (file.oldPath) {
+          restorePaths.add(file.oldPath)
+          cleanPaths.add(file.path)
+          continue
+        }
+
+        restorePaths.add(file.path)
+      }
+
+      if (indexPaths.size > 0) {
+        await this.execute(repoPath, ['reset', 'HEAD', '--', ...indexPaths])
+      }
+
+      if (restorePaths.size > 0) {
+        await this.execute(repoPath, ['restore', '--source=HEAD', '--staged', '--worktree', '--', ...restorePaths])
+      }
+
+      if (cleanPaths.size > 0) {
+        await this.execute(repoPath, ['clean', '-fd', '--', ...cleanPaths])
+      }
+    })
+  }
+
+  /**
    * Checks out a branch or file.
    */
   public async checkout(repoPath: string, target: string): Promise<void> {

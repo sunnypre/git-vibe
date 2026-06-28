@@ -83,6 +83,17 @@ export function registerIpcHandlers(): void {
     }
   })
 
+  // Revert selected file changes
+  ipcMain.handle(IPC_EVENTS.GIT.REVERT_CHANGES, async (event, repoPath: string, paths: string[]): Promise<IpcResponse> => {
+    try {
+      await gitExecutor.revertChanges(repoPath, paths)
+      event.sender.send(IPC_EVENTS.GIT.REFRESH, repoPath)
+      return { success: true }
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
+  })
+
   // Checkout
   ipcMain.handle(IPC_EVENTS.GIT.CHECKOUT, async (event, repoPath: string, target: string): Promise<IpcResponse> => {
     try {

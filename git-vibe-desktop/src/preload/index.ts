@@ -45,6 +45,15 @@ const api = {
         return { success: false, error: (error as Error).message }
       }
     },
+    revertChanges: async (repoPath: string, files: string[]): Promise<IpcResponse> => {
+      if (!repoPath?.trim()) return { success: false, error: 'Invalid repository path' }
+      if (!files?.length) return { success: false, error: 'No files provided' }
+      try {
+        return await ipcRenderer.invoke(IPC_EVENTS.GIT.REVERT_CHANGES, repoPath, files)
+      } catch (error: unknown) {
+        return { success: false, error: (error as Error).message }
+      }
+    },
     commit: async (repoPath: string, message: string): Promise<IpcResponse> => {
       if (!repoPath?.trim()) return { success: false, error: 'Invalid repository path' }
       if (!message?.trim()) return { success: false, error: 'Commit message required' }

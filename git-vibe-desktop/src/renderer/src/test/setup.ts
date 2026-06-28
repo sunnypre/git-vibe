@@ -33,10 +33,15 @@ Object.defineProperty(window, 'api', {
     git: {
       getCurrentBranch: vi.fn().mockResolvedValue({ success: true, data: 'main' }),
       getStatus: vi.fn().mockResolvedValue({ success: true, data: [] }),
+      getDiff: vi.fn().mockResolvedValue({ success: true, data: { filePath: '', lines: [] } }),
+      add: vi.fn().mockResolvedValue({ success: true }),
+      reset: vi.fn().mockResolvedValue({ success: true }),
+      revertChanges: vi.fn().mockResolvedValue({ success: true }),
       selectDirectory: vi.fn().mockResolvedValue('/mock/selected/path'),
       getBranches: vi.fn().mockResolvedValue({ success: true, data: ['main', 'dev'] }),
       createBranch: vi.fn().mockResolvedValue({ success: true }),
       push: vi.fn().mockResolvedValue({ success: true }),
+      pull: vi.fn().mockResolvedValue({ success: true }),
       getStoredRepositories: vi.fn().mockResolvedValue({ success: true, data: [] }),
       storeRepositories: vi.fn().mockResolvedValue({ success: true }),
       onRefresh: vi.fn((_cb) => () => {})

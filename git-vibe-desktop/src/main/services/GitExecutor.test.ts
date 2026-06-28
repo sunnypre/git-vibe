@@ -173,4 +173,58 @@ describe('GitExecutor mutations', () => {
     expect(executeSpy).toHaveBeenCalledWith('/repo', ['reset', 'HEAD', '--', 'file1.js'])
     executeSpy.mockRestore()
   })
+
+  it('should revert tracked file changes from HEAD', async () => {
+    const executor = GitExecutor.getInstance()
+    const executeSpy = vi.spyOn(executor, 'execute')
+      .mockResolvedValueOnce({ stdout: ' M file1.js', stderr: '' })
+      .mockResolvedValue({ stdout: '', stderr: '' })
+
+    await executor.revertChanges('/repo', ['file1.js'])
+
+    expect(executeSpy).toHaveBeenNthCalledWith(1, '/repo', ['status', '--porcelain'])
+    expect(executeSpy).toHaveBeenNthCalledWith(2, '/repo', [
+      'restore',
+      '--source=HEAD',
+      '--staged',
+      '--worktree',
+      '--',
+      'file1.js'
+    ])
+    executeSpy.mockRestore()
+  })
+
+  it('should reset and clean staged added files when reverting', async () => {
+    const executor = GitExecutor.getInstance()
+    const executeSpy = vi.spyOn(executor, 'execute')
+      .mockResolvedValueOnce({ stdout: 'A  new-file.js', stderr: '' })
+      .mockResolvedValue({ stdout: '', stderr: '' })
+
+    await executor.revertChanges('/repo', ['new-file.js'])
+
+    expect(executeSpy).toHaveBeenNthCalledWith(2, '/repo', ['reset', 'HEAD', '--', 'new-file.js'])
+    expect(executeSpy).toHaveBeenNthCalledWith(3, '/repo', ['clean', '-fd', '--', 'new-file.js'])
+    executeSpy.mockRestore()
+  })
+
+  it('should restore old paths and clean new paths for renamed files', async () => {
+    const executor = GitExecutor.getInstance()
+    const executeSpy = vi.spyOn(executor, 'execute')
+      .mockResolvedValueOnce({ stdout: 'R  old.js -> new.js', stderr: '' })
+      .mockResolvedValue({ stdout: '', stderr: '' })
+
+    await executor.revertChanges('/repo', ['new.js'])
+
+    expect(executeSpy).toHaveBeenNthCalledWith(2, '/repo', ['reset', 'HEAD', '--', 'new.js'])
+    expect(executeSpy).toHaveBeenNthCalledWith(3, '/repo', [
+      'restore',
+      '--source=HEAD',
+      '--staged',
+      '--worktree',
+      '--',
+      'old.js'
+    ])
+    expect(executeSpy).toHaveBeenNthCalledWith(4, '/repo', ['clean', '-fd', '--', 'new.js'])
+    executeSpy.mockRestore()
+  })
 })

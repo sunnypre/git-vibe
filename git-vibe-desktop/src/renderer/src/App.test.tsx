@@ -1,4 +1,4 @@
-import { render, screen, act, fireEvent } from '@testing-library/react'
+import { render, screen, act, fireEvent, waitFor } from '@testing-library/react'
 import App from './App'
 import { expect, test, beforeEach } from 'vitest'
 import { useGitStore } from './store/useGitStore'
@@ -186,4 +186,74 @@ test('toggles search panel visibility and search filtering via Ctrl+F and UI con
   // Verify full files list is visible again
   expect(screen.getByText('src/main.ts')).toBeInTheDocument()
   expect(screen.getByText('package.json')).toBeInTheDocument()
+})
+
+test('allows ctrl-click multi-select and reverting the selected files from context menu', async () => {
+  render(<App />)
+
+  const path = '/test/repo-1'
+  act(() => {
+    useGitStore.getState().addRepository(path)
+    useGitStore.getState().updateRepositoryState(path, {
+      files: [
+        { path: 'src/main.ts', stagedStatus: 'none', unstagedStatus: 'modified', isStaged: false },
+        { path: 'package.json', stagedStatus: 'none', unstagedStatus: 'modified', isStaged: false }
+      ]
+    })
+  })
+
+  act(() => {
+    fireEvent.click(screen.getByText('src/main.ts'))
+    fireEvent.click(screen.getByText('package.json'), { ctrlKey: true })
+  })
+
+  expect(useGitStore.getState().repositories[path].selectedFilePaths).toEqual([
+    'src/main.ts',
+    'package.json'
+  ])
+
+  act(() => {
+    fireEvent.contextMenu(screen.getByText('src/main.ts'))
+  })
+
+  expect(screen.getByText('Revert 2 files')).toBeInTheDocument()
+
+  act(() => {
+    fireEvent.click(screen.getByText('Revert 2 files'))
+  })
+
+  await waitFor(() => {
+    expect(window.api.git.revertChanges).toHaveBeenCalledWith(path, ['src/main.ts', 'package.json'])
+  })
+})
+
+test('right-clicking an unselected file reverts only that file', async () => {
+  render(<App />)
+
+  const path = '/test/repo-1'
+  act(() => {
+    useGitStore.getState().addRepository(path)
+    useGitStore.getState().updateRepositoryState(path, {
+      files: [
+        { path: 'src/main.ts', stagedStatus: 'none', unstagedStatus: 'modified', isStaged: false },
+        { path: 'package.json', stagedStatus: 'none', unstagedStatus: 'modified', isStaged: false }
+      ]
+    })
+  })
+
+  act(() => {
+    fireEvent.click(screen.getByText('src/main.ts'))
+    fireEvent.contextMenu(screen.getByText('package.json'))
+  })
+
+  expect(useGitStore.getState().repositories[path].selectedFilePaths).toEqual(['package.json'])
+  expect(screen.getByText('Revert 1 file')).toBeInTheDocument()
+
+  act(() => {
+    fireEvent.click(screen.getByText('Revert 1 file'))
+  })
+
+  await waitFor(() => {
+    expect(window.api.git.revertChanges).toHaveBeenCalledWith(path, ['package.json'])
+  })
 })

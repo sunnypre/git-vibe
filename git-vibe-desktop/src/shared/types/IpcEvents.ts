@@ -3,6 +3,7 @@ export const IPC_EVENTS = {
     STATUS: 'git:status',
     ADD: 'git:add',
     RESET: 'git:reset',
+    REVERT_CHANGES: 'git:revertChanges',
     COMMIT: 'git:commit',
     PUSH: 'git:push',
     PULL: 'git:pull',

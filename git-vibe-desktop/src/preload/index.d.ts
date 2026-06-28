@@ -14,6 +14,7 @@ declare global {
         ) => Promise<IpcResponse<GitDiff>>
         add: (repoPath: string, files: string[]) => Promise<IpcResponse>
         reset: (repoPath: string, files: string[]) => Promise<IpcResponse>
+        revertChanges: (repoPath: string, files: string[]) => Promise<IpcResponse>
         commit: (repoPath: string, message: string) => Promise<IpcResponse>
         getCurrentBranch: (repoPath: string) => Promise<IpcResponse<string>>
         checkout: (repoPath: string, target: string) => Promise<IpcResponse>
@@ -21,6 +22,7 @@ declare global {
         getBranches: (repoPath: string) => Promise<IpcResponse<string[]>>
         createBranch: (repoPath: string, name: string) => Promise<IpcResponse>
         push: (repoPath: string, branch: string) => Promise<IpcResponse>
+        pull: (repoPath: string) => Promise<IpcResponse>
         getStoredRepositories: () => Promise<IpcResponse<string[]>>
         storeRepositories: (paths: string[]) => Promise<IpcResponse>
         onRefresh: (callback: (repoPath: string) => void) => () => void

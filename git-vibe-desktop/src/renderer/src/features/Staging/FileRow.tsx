@@ -9,12 +9,15 @@ function cn(...inputs: ClassValue[]): string {
 
 interface FileRowProps {
   file: GitFile
+  onOpenContextMenu: (file: GitFile, x: number, y: number) => void
 }
 
-export const FileRow = ({ file }: FileRowProps): React.JSX.Element => {
+export const FileRow = ({ file, onOpenContextMenu }: FileRowProps): React.JSX.Element => {
   const { activeRepoId, stageFile, unstageFile, selectFile } = useGitStore()
   const activeRepo = useActiveRepo()
-  const isSelected = activeRepo?.selectedFilePath === file.path
+  const isSelected = Boolean(
+    activeRepo?.selectedFilePaths.includes(file.path) || activeRepo?.selectedFilePath === file.path
+  )
 
   const stagedCode = file.stagedStatus !== 'none' ? file.stagedStatus : null
   const unstagedCode = file.unstagedStatus !== 'none' ? file.unstagedStatus : null
@@ -77,8 +80,14 @@ export const FileRow = ({ file }: FileRowProps): React.JSX.Element => {
         "group flex items-center gap-2 px-2 py-1.5 hover:bg-muted/50 cursor-pointer text-xs transition-colors border-b border-muted/5 outline-none",
         isSelected ? "bg-muted/80 border-l-2 border-l-primary" : "focus-within:bg-muted/30"
       )}
-      onClick={() => {
-        if (activeRepoId) selectFile(activeRepoId, file.path)
+      onClick={(event) => {
+        if (activeRepoId) selectFile(activeRepoId, file.path, event.ctrlKey)
+      }}
+      onContextMenu={(event) => {
+        event.preventDefault()
+        if (activeRepoId) {
+          onOpenContextMenu(file, event.clientX, event.clientY)
+        }
       }}
       onKeyDown={handleKeyDown}
       tabIndex={0}

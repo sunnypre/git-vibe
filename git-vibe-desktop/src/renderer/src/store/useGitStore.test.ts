@@ -13,6 +13,7 @@ const mockStoreRepositories = vi.fn()
 const mockTerminalClose = vi.fn()
 const mockAdd = vi.fn()
 const mockReset = vi.fn()
+const mockRevertChanges = vi.fn()
 
 vi.stubGlobal('window', {
   api: {
@@ -26,7 +27,8 @@ vi.stubGlobal('window', {
       getStoredRepositories: mockGetStoredRepositories,
       storeRepositories: mockStoreRepositories,
       add: mockAdd,
-      reset: mockReset
+      reset: mockReset,
+      revertChanges: mockRevertChanges
     },
     terminal: {
       close: mockTerminalClose
@@ -49,6 +51,7 @@ describe('useGitStore', () => {
     mockStoreRepositories.mockResolvedValue({ success: true })
     mockAdd.mockResolvedValue({ success: true })
     mockReset.mockResolvedValue({ success: true })
+    mockRevertChanges.mockResolvedValue({ success: true })
   })
 
   it('should start with an empty state', () => {
@@ -263,5 +266,59 @@ describe('useGitStore', () => {
 
     setSearchQuery(path, 'hello')
     expect(useGitStore.getState().repositories[path].searchQuery).toBe('hello')
+  })
+
+  it('should support single and ctrl-style multi file selection', () => {
+    const { addRepository, selectFile } = useGitStore.getState()
+    const path = '/path/to/repo'
+    addRepository(path)
+
+    selectFile(path, 'a.ts')
+    expect(useGitStore.getState().repositories[path].selectedFilePath).toBe('a.ts')
+    expect(useGitStore.getState().repositories[path].selectedFilePaths).toEqual(['a.ts'])
+
+    selectFile(path, 'b.ts', true)
+    expect(useGitStore.getState().repositories[path].selectedFilePath).toBe('b.ts')
+    expect(useGitStore.getState().repositories[path].selectedFilePaths).toEqual(['a.ts', 'b.ts'])
+
+    selectFile(path, 'a.ts', true)
+    expect(useGitStore.getState().repositories[path].selectedFilePath).toBe('b.ts')
+    expect(useGitStore.getState().repositories[path].selectedFilePaths).toEqual(['b.ts'])
+
+    selectFile(path, 'a.ts', true)
+    expect(useGitStore.getState().repositories[path].selectedFilePath).toBe('a.ts')
+    expect(useGitStore.getState().repositories[path].selectedFilePaths).toEqual(['b.ts', 'a.ts'])
+
+    selectFile(path, 'b.ts', true)
+    expect(useGitStore.getState().repositories[path].selectedFilePath).toBe('a.ts')
+    expect(useGitStore.getState().repositories[path].selectedFilePaths).toEqual(['a.ts'])
+
+    selectFile(path, 'c.ts')
+    expect(useGitStore.getState().repositories[path].selectedFilePath).toBe('c.ts')
+    expect(useGitStore.getState().repositories[path].selectedFilePaths).toEqual(['c.ts'])
+  })
+
+  it('should revert selected files through the preload API and refresh status', async () => {
+    const { addRepository, revertFiles, updateRepositoryState } = useGitStore.getState()
+    const path = '/path/to/repo'
+    const initialFiles = [
+      { path: 'a.ts', stagedStatus: 'none' as any, unstagedStatus: 'modified' as any, isStaged: false },
+      { path: 'b.ts', stagedStatus: 'modified' as any, unstagedStatus: 'none' as any, isStaged: true }
+    ]
+
+    addRepository(path)
+    updateRepositoryState(path, {
+      files: initialFiles,
+      selectedFilePath: 'a.ts',
+      selectedFilePaths: ['a.ts', 'b.ts']
+    })
+    mockGetStatus.mockResolvedValueOnce({ success: true, data: [] })
+
+    await revertFiles(path, ['a.ts', 'b.ts'])
+
+    expect(mockRevertChanges).toHaveBeenCalledWith(path, ['a.ts', 'b.ts'])
+    expect(useGitStore.getState().repositories[path].selectedFilePath).toBeNull()
+    expect(useGitStore.getState().repositories[path].selectedFilePaths).toEqual([])
+    expect(useGitStore.getState().toast?.type).toBe('success')
   })
 })
