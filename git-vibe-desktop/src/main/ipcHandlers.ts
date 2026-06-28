@@ -138,6 +138,16 @@ export function registerIpcHandlers(): void {
     }
   })
 
+  // Unpushed commit count
+  ipcMain.handle(IPC_EVENTS.GIT.UNPUSHED_COUNT, async (_, repoPath: string, branchName: string): Promise<IpcResponse<number>> => {
+    try {
+      const count = await gitExecutor.getUnpushedCommitCount(repoPath, branchName)
+      return { success: true, data: count }
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
+  })
+
   // Diff
   ipcMain.handle(
     IPC_EVENTS.GIT.DIFF,

@@ -8,6 +8,8 @@ const mockGetBranches = vi.fn()
 const mockCreateBranch = vi.fn()
 const mockCommit = vi.fn()
 const mockPush = vi.fn()
+const mockPull = vi.fn()
+const mockGetUnpushedCommitCount = vi.fn()
 const mockGetStoredRepositories = vi.fn()
 const mockStoreRepositories = vi.fn()
 const mockTerminalClose = vi.fn()
@@ -24,6 +26,8 @@ vi.stubGlobal('window', {
       createBranch: mockCreateBranch,
       commit: mockCommit,
       push: mockPush,
+      pull: mockPull,
+      getUnpushedCommitCount: mockGetUnpushedCommitCount,
       getStoredRepositories: mockGetStoredRepositories,
       storeRepositories: mockStoreRepositories,
       add: mockAdd,
@@ -47,6 +51,8 @@ describe('useGitStore', () => {
     mockCreateBranch.mockResolvedValue({ success: true })
     mockCommit.mockResolvedValue({ success: true })
     mockPush.mockResolvedValue({ success: true })
+    mockPull.mockResolvedValue({ success: true })
+    mockGetUnpushedCommitCount.mockResolvedValue({ success: true, data: 0 })
     mockGetStoredRepositories.mockResolvedValue({ success: true, data: [] })
     mockStoreRepositories.mockResolvedValue({ success: true })
     mockAdd.mockResolvedValue({ success: true })
@@ -183,6 +189,20 @@ describe('useGitStore', () => {
     expect(useGitStore.getState().repositories[path].branches).toEqual(['main', 'dev'])
   })
 
+  it('should refresh unpushed commit count for the current branch', async () => {
+    const { addRepository, refreshUnpushedCommitCount } = useGitStore.getState()
+    const path = '/path/to/repo'
+    addRepository(path)
+
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    mockGetUnpushedCommitCount.mockResolvedValueOnce({ success: true, data: 4 })
+    await refreshUnpushedCommitCount(path)
+
+    expect(mockGetUnpushedCommitCount).toHaveBeenLastCalledWith(path, 'main')
+    expect(useGitStore.getState().repositories[path].unpushedCommitCount).toBe(4)
+  })
+
   it('should call api.git.commit and clear commit message on success', async () => {
     const { addRepository, setCommitMessage, commitChanges } = useGitStore.getState()
     const path = '/path/to/repo'
@@ -220,6 +240,20 @@ describe('useGitStore', () => {
 
     expect(mockPush).toHaveBeenCalledWith(path, 'main')
     expect(useGitStore.getState().toast?.type).toBe('success')
+  })
+
+  it('should refresh unpushed commit count after pushing', async () => {
+    const { addRepository, pushChanges } = useGitStore.getState()
+    const path = '/path/to/repo'
+    addRepository(path)
+    
+    await new Promise(resolve => setTimeout(resolve, 0))
+    mockGetUnpushedCommitCount.mockResolvedValueOnce({ success: true, data: 0 })
+
+    await pushChanges(path)
+
+    expect(mockPush).toHaveBeenCalledWith(path, 'main')
+    expect(mockGetUnpushedCommitCount).toHaveBeenCalledWith(path, 'main')
   })
 
   it('should stage all files optimistically and call window.api.git.add', async () => {

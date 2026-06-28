@@ -7,6 +7,7 @@ export const IPC_EVENTS = {
     COMMIT: 'git:commit',
     PUSH: 'git:push',
     PULL: 'git:pull',
+    UNPUSHED_COUNT: 'git:unpushedCount',
     BRANCH: 'git:branch',
     DIFF: 'git:diff',
     CHECKOUT: 'git:checkout',

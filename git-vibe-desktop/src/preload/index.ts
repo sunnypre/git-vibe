@@ -122,6 +122,15 @@ const api = {
         return { success: false, error: (error as Error).message }
       }
     },
+    getUnpushedCommitCount: async (repoPath: string, branch: string): Promise<IpcResponse<number>> => {
+      if (!repoPath?.trim()) return { success: false, error: 'Invalid repository path' }
+      if (!branch?.trim()) return { success: false, error: 'Branch name required' }
+      try {
+        return await ipcRenderer.invoke(IPC_EVENTS.GIT.UNPUSHED_COUNT, repoPath, branch)
+      } catch (error: unknown) {
+        return { success: false, error: (error as Error).message }
+      }
+    },
     getStoredRepositories: async (): Promise<IpcResponse<string[]>> => {
       try {
         return await ipcRenderer.invoke('git:getStoredRepositories')

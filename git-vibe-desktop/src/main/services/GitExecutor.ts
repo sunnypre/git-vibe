@@ -335,6 +335,27 @@ export class GitExecutor {
   }
 
   /**
+   * Counts commits on the current branch that have not been pushed.
+   */
+  public async getUnpushedCommitCount(repoPath: string, branchName: string): Promise<number> {
+    return this.queueCommand(async () => {
+      let args: string[]
+
+      try {
+        const { stdout } = await this.execute(repoPath, ['rev-parse', '--abbrev-ref', `${branchName}@{u}`])
+        const upstream = stdout.trim()
+        args = ['rev-list', '--count', `${upstream}..HEAD`]
+      } catch {
+        args = ['rev-list', '--count', 'HEAD', '--not', '--remotes']
+      }
+
+      const { stdout } = await this.execute(repoPath, args)
+      const count = Number.parseInt(stdout.trim(), 10)
+      return Number.isNaN(count) ? 0 : count
+    })
+  }
+
+  /**
    * Gets the diff for a specific file.
    */
   public async getDiff(

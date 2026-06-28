@@ -42,6 +42,7 @@ Object.defineProperty(window, 'api', {
       createBranch: vi.fn().mockResolvedValue({ success: true }),
       push: vi.fn().mockResolvedValue({ success: true }),
       pull: vi.fn().mockResolvedValue({ success: true }),
+      getUnpushedCommitCount: vi.fn().mockResolvedValue({ success: true, data: 0 }),
       getStoredRepositories: vi.fn().mockResolvedValue({ success: true, data: [] }),
       storeRepositories: vi.fn().mockResolvedValue({ success: true }),
       onRefresh: vi.fn((_cb) => () => {})

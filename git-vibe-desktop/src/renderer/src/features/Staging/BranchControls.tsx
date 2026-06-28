@@ -146,10 +146,19 @@ export const BranchControls = (): React.JSX.Element | null => {
           <button
             onClick={handlePush}
             disabled={isPushing}
-            className="p-1.5 hover:bg-muted/50 text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:pointer-events-none rounded-md border border-border transition-colors outline-none focus-visible:border-[#007acc]"
-            title="Push branch and changes upstream"
+            className="relative p-1.5 hover:bg-muted/50 text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:pointer-events-none rounded-md border border-border transition-colors outline-none focus-visible:border-[#007acc]"
+            title={
+              activeRepo.unpushedCommitCount > 0
+                ? `Push ${activeRepo.unpushedCommitCount} unpushed commit${activeRepo.unpushedCommitCount === 1 ? '' : 's'} upstream`
+                : 'Push branch and changes upstream'
+            }
           >
             <CloudUpload className={`w-3.5 h-3.5 ${isPushing ? 'animate-bounce' : ''}`} />
+            {activeRepo.unpushedCommitCount > 0 && (
+              <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold leading-none text-primary-foreground">
+                {activeRepo.unpushedCommitCount > 99 ? '99+' : activeRepo.unpushedCommitCount}
+              </span>
+            )}
           </button>
         </div>
       </div>

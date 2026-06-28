@@ -257,3 +257,19 @@ test('right-clicking an unselected file reverts only that file', async () => {
     expect(window.api.git.revertChanges).toHaveBeenCalledWith(path, ['package.json'])
   })
 })
+
+test('shows unpushed commit count badge on push button', () => {
+  render(<App />)
+
+  const path = '/test/repo-1'
+  act(() => {
+    useGitStore.getState().addRepository(path)
+    useGitStore.getState().updateRepositoryState(path, {
+      currentBranch: 'main',
+      unpushedCommitCount: 5
+    })
+  })
+
+  expect(screen.getByTitle('Push 5 unpushed commits upstream')).toBeInTheDocument()
+  expect(screen.getByText('5')).toBeInTheDocument()
+})

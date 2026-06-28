@@ -227,4 +227,31 @@ describe('GitExecutor mutations', () => {
     expect(executeSpy).toHaveBeenNthCalledWith(4, '/repo', ['clean', '-fd', '--', 'new.js'])
     executeSpy.mockRestore()
   })
+
+  it('should count commits ahead of the configured upstream', async () => {
+    const executor = GitExecutor.getInstance()
+    const executeSpy = vi.spyOn(executor, 'execute')
+      .mockResolvedValueOnce({ stdout: 'origin/main\n', stderr: '' })
+      .mockResolvedValueOnce({ stdout: '3\n', stderr: '' })
+
+    const count = await executor.getUnpushedCommitCount('/repo', 'main')
+
+    expect(count).toBe(3)
+    expect(executeSpy).toHaveBeenNthCalledWith(1, '/repo', ['rev-parse', '--abbrev-ref', 'main@{u}'])
+    expect(executeSpy).toHaveBeenNthCalledWith(2, '/repo', ['rev-list', '--count', 'origin/main..HEAD'])
+    executeSpy.mockRestore()
+  })
+
+  it('should count commits not on remotes when no upstream is configured', async () => {
+    const executor = GitExecutor.getInstance()
+    const executeSpy = vi.spyOn(executor, 'execute')
+      .mockRejectedValueOnce(new Error('no upstream'))
+      .mockResolvedValueOnce({ stdout: '2\n', stderr: '' })
+
+    const count = await executor.getUnpushedCommitCount('/repo', 'feature')
+
+    expect(count).toBe(2)
+    expect(executeSpy).toHaveBeenNthCalledWith(2, '/repo', ['rev-list', '--count', 'HEAD', '--not', '--remotes'])
+    executeSpy.mockRestore()
+  })
 })

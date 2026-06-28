@@ -12,6 +12,7 @@ export interface RepositorySlice extends GitRepository {
   error: string | null
   lastSyncedAt: number | null
   branches: string[]
+  unpushedCommitCount: number
   commitMessage: string
   searchQuery: string
   isSearchOpen: boolean
@@ -38,6 +39,7 @@ export interface GitActions {
   revertFiles: (id: string, paths: string[]) => Promise<void>
   setCommitMessage: (id: string, message: string) => void
   refreshBranches: (id: string) => Promise<void>
+  refreshUnpushedCommitCount: (id: string) => Promise<void>
   createBranch: (id: string, branchName: string) => Promise<void>
   commitChanges: (id: string, message: string) => Promise<void>
   pushChanges: (id: string) => Promise<void>
@@ -91,6 +93,7 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
         error: null,
         lastSyncedAt: Date.now(),
         branches: [],
+        unpushedCommitCount: 0,
         commitMessage: '',
         searchQuery: '',
         isSearchOpen: false
@@ -110,6 +113,7 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
     get().refreshBranch(path)
     get().refreshStatus(path)
     get().refreshBranches(path)
+    get().refreshUnpushedCommitCount(path)
   },
 
   setActiveRepository: (id) => {
@@ -119,6 +123,7 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
       get().refreshBranch(id)
       get().refreshStatus(id)
       get().refreshBranches(id)
+      get().refreshUnpushedCommitCount(id)
     }
   },
 
@@ -192,6 +197,7 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
           isRefreshing: false,
           lastSyncedAt: Date.now()
         })
+        get().refreshUnpushedCommitCount(pathId)
       } else {
         get().updateRepositoryState(pathId, { 
           currentBranch: 'error',
@@ -265,7 +271,8 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
     await Promise.all([
       get().refreshBranch(pathId),
       get().refreshStatus(pathId),
-      get().refreshBranches(pathId)
+      get().refreshBranches(pathId),
+      get().refreshUnpushedCommitCount(pathId)
     ])
   },
 
@@ -472,6 +479,26 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
     }
   },
 
+  refreshUnpushedCommitCount: async (id) => {
+    const pathId = normalizePath(id)
+    const repo = get().repositories[pathId]
+    if (!repo || !repo.currentBranch || repo.currentBranch === 'loading...' || repo.currentBranch === 'error') return
+
+    try {
+      const response = await window.api.git.getUnpushedCommitCount(repo.path, repo.currentBranch)
+      if (response.success) {
+        get().updateRepositoryState(pathId, {
+          unpushedCommitCount: response.data || 0,
+          lastSyncedAt: Date.now()
+        })
+      } else {
+        get().updateRepositoryState(pathId, { unpushedCommitCount: 0 })
+      }
+    } catch {
+      get().updateRepositoryState(pathId, { unpushedCommitCount: 0 })
+    }
+  },
+
   createBranch: async (id, branchName) => {
     const pathId = normalizePath(id)
     const repo = get().repositories[pathId]
@@ -501,6 +528,7 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
         get().showToast('Changes committed successfully!', 'success')
         get().updateRepositoryState(pathId, { commitMessage: '' }) // Clear draft
         await get().refreshStatus(pathId)
+        await get().refreshUnpushedCommitCount(pathId)
       } else {
         get().showToast(response.error || 'Failed to commit changes', 'error')
       }
@@ -519,6 +547,7 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
       if (response.success) {
         get().showToast(`Pushed "${repo.currentBranch}" upstream!`, 'success')
         await get().refreshRepository(pathId)
+        await get().refreshUnpushedCommitCount(pathId)
       } else {
         get().showToast(response.error || 'Failed to push changes', 'error')
       }
@@ -537,6 +566,7 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
       if (response.success) {
         get().showToast(`Pulled changes successfully!`, 'success')
         await get().refreshRepository(pathId)
+        await get().refreshUnpushedCommitCount(pathId)
       } else {
         get().showToast(response.error || 'Failed to pull changes', 'error')
       }

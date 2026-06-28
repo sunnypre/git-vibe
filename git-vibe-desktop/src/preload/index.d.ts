@@ -23,6 +23,7 @@ declare global {
         createBranch: (repoPath: string, name: string) => Promise<IpcResponse>
         push: (repoPath: string, branch: string) => Promise<IpcResponse>
         pull: (repoPath: string) => Promise<IpcResponse>
+        getUnpushedCommitCount: (repoPath: string, branch: string) => Promise<IpcResponse<number>>
         getStoredRepositories: () => Promise<IpcResponse<string[]>>
         storeRepositories: (paths: string[]) => Promise<IpcResponse>
         onRefresh: (callback: (repoPath: string) => void) => () => void
