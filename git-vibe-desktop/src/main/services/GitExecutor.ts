@@ -272,6 +272,15 @@ export class GitExecutor {
   }
 
   /**
+   * Pulls changes from the remote.
+   */
+  public async pull(repoPath: string): Promise<void> {
+    await this.queueCommand(async () => {
+      await this.execute(repoPath, ['pull'])
+    })
+  }
+
+  /**
    * Gets the diff for a specific file.
    */
   public async getDiff(

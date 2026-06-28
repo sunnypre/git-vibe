@@ -39,12 +39,14 @@ export interface GitActions {
   createBranch: (id: string, branchName: string) => Promise<void>
   commitChanges: (id: string, message: string) => Promise<void>
   pushChanges: (id: string) => Promise<void>
+  pullChanges: (id: string) => Promise<void>
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void
   clearToast: () => void
   stageAllFiles: (id: string) => Promise<void>
   unstageAllFiles: (id: string) => Promise<void>
   setSearchQuery: (id: string, query: string) => void
   setSearchOpen: (id: string, isOpen: boolean) => void
+  clearRepositories: () => void
 }
 
 const normalizePath = (p: string): string => {
@@ -455,6 +457,24 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
     }
   },
 
+  pullChanges: async (id) => {
+    const pathId = normalizePath(id)
+    const repo = get().repositories[pathId]
+    if (!repo) return
+
+    try {
+      const response = await window.api.git.pull(repo.path)
+      if (response.success) {
+        get().showToast(`Pulled changes successfully!`, 'success')
+        await get().refreshRepository(pathId)
+      } else {
+        get().showToast(response.error || 'Failed to pull changes', 'error')
+      }
+    } catch (err: any) {
+      get().showToast(err.message, 'error')
+    }
+  },
+
   showToast: (message, type = 'info') => {
     set({
       toast: {
@@ -467,6 +487,19 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
 
   clearToast: () => {
     set({ toast: null })
+  },
+
+  clearRepositories: () => {
+    Object.keys(get().repositories).forEach((id) => {
+      try {
+        window.api.terminal.close(id)
+      } catch (err) {
+        console.error('Failed to close terminal on repo clear:', err)
+      }
+    })
+
+    set({ repositories: {}, activeRepoId: null })
+    window.api.git.storeRepositories([])
   },
 
   stageAllFiles: async (id) => {

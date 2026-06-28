@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { Panel, PanelGroup } from 'react-resizable-panels'
 import * as Tabs from '@radix-ui/react-tabs'
-import { GitBranch, Plus, X, FileDiff, Terminal as TerminalIcon, Search } from 'lucide-react'
+import { GitBranch, Plus, X, FileDiff, Terminal as TerminalIcon, Search, Trash2, RefreshCw } from 'lucide-react'
 import { ResizeHandle } from './components/ResizeHandle'
 import { useGitStore, useActiveRepo } from './store/useGitStore'
 import { FileList } from './features/Staging/FileList'
@@ -23,7 +23,9 @@ function App(): React.JSX.Element {
     stageAllFiles,
     unstageAllFiles,
     setSearchQuery,
-    setSearchOpen
+    setSearchOpen,
+    clearRepositories,
+    refreshRepository
   } = useGitStore()
   const activeRepo = useActiveRepo()
   const repoList = Object.values(repositories)
@@ -51,9 +53,18 @@ function App(): React.JSX.Element {
   }, [activeRepoId, refreshBranch, refreshStatus])
 
   useEffect(() => {
-    window.api.git.getStoredRepositories().then((response) => {
+    window.api.git.getStoredRepositories().then(async (response) => {
       if (response.success && response.data && response.data.length > 0) {
-        response.data.forEach((path) => {
+        const validRepos: string[] = []
+        for (const path of response.data) {
+          const branchResponse = await window.api.git.getCurrentBranch(path)
+          if (branchResponse.success) {
+            validRepos.push(path)
+          } else {
+            console.error(`Skipping invalid stored repository: ${path}`)
+          }
+        }
+        validRepos.forEach((path) => {
           addRepository(path)
         })
       }
@@ -77,10 +88,17 @@ function App(): React.JSX.Element {
           }
         }
       }
+      
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'r') {
+        if (activeRepoId) {
+          e.preventDefault()
+          refreshRepository(activeRepoId)
+        }
+      }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [activeRepoId, repositories, setSearchOpen, setSearchQuery])
+  }, [activeRepoId, repositories, setSearchOpen, setSearchQuery, refreshRepository])
 
   const handleCloseRepo = (id: string, e: React.MouseEvent) => {
     e.preventDefault()
@@ -93,6 +111,11 @@ function App(): React.JSX.Element {
     try {
       const path = await window.api.git.selectDirectory()
       if (path) {
+        const branchResponse = await window.api.git.getCurrentBranch(path)
+        if (!branchResponse.success) {
+          useGitStore.getState().showToast('Not a valid Git repository.', 'error')
+          return
+        }
         addRepository(path)
       }
     } catch (error: any) {
@@ -111,12 +134,11 @@ function App(): React.JSX.Element {
         {/* Tab Bar */}
         <div className="h-10 border-b flex items-center bg-muted/30 shrink-0">
           <Tabs.List className="flex items-center gap-0.5 px-2 flex-1 overflow-x-auto no-scrollbar h-full">
-            {repoList.map((repo) => {
-              const repoKey = repo.path.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase()
+            {Object.entries(repositories).map(([repoId, repo]) => {
               return (
-                <div key={repoKey} className="group relative h-full flex items-center">
+                <div key={repoId} className="group relative h-full flex items-center">
                   <Tabs.Trigger
-                    value={repoKey}
+                    value={repoId}
                     className="flex items-center gap-2 px-4 py-2 text-xs font-medium text-muted-foreground hover:text-foreground border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-background/50 transition-all whitespace-nowrap h-full outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset"
                   >
                     <GitBranch className="w-3.5 h-3.5" />
@@ -125,7 +147,7 @@ function App(): React.JSX.Element {
                   </Tabs.Trigger>
 
                   <button
-                    onClick={(e) => handleCloseRepo(repoKey, e)}
+                    onClick={(e) => handleCloseRepo(repoId, e)}
                     className="absolute right-1 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:bg-muted rounded p-0.5 transition-opacity text-muted-foreground hover:text-foreground outline-none focus-visible:ring-1 focus-visible:ring-ring"
                     aria-label={`Close ${repo.name}`}
                   >
@@ -137,11 +159,28 @@ function App(): React.JSX.Element {
           </Tabs.List>
 
           <button
+            onClick={() => activeRepoId && refreshRepository(activeRepoId)}
+            className={`px-3 h-full flex items-center text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors border-l outline-none focus-visible:bg-muted/50 ${!activeRepoId ? 'opacity-50 cursor-not-allowed' : ''}`}
+            title="Refresh active repository (Ctrl+R)"
+            disabled={!activeRepoId}
+          >
+            <RefreshCw className={`w-4 h-4 ${activeRepo?.isRefreshing || activeRepo?.isLoading ? 'animate-spin' : ''}`} />
+          </button>
+
+          <button
             onClick={handleAddRepository}
             className="px-3 h-full flex items-center text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors border-l outline-none focus-visible:bg-muted/50"
             title="Add local repository"
           >
             <Plus className="w-4 h-4" />
+          </button>
+          
+          <button
+            onClick={() => clearRepositories()}
+            className="px-3 h-full flex items-center text-muted-foreground hover:text-red-500 hover:bg-muted/50 transition-colors border-l outline-none focus-visible:bg-muted/50"
+            title="Clear all repositories"
+          >
+            <Trash2 className="w-4 h-4" />
           </button>
         </div>
 

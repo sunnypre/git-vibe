@@ -105,6 +105,14 @@ const api = {
         return { success: false, error: (error as Error).message }
       }
     },
+    pull: async (repoPath: string): Promise<IpcResponse> => {
+      if (!repoPath?.trim()) return { success: false, error: 'Invalid repository path' }
+      try {
+        return await ipcRenderer.invoke(IPC_EVENTS.GIT.PULL, repoPath)
+      } catch (error: unknown) {
+        return { success: false, error: (error as Error).message }
+      }
+    },
     getStoredRepositories: async (): Promise<IpcResponse<string[]>> => {
       try {
         return await ipcRenderer.invoke('git:getStoredRepositories')

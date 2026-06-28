@@ -1,14 +1,15 @@
 import React, { useState } from 'react'
 import { useGitStore, useActiveRepo } from '../../store/useGitStore'
-import { GitBranch, Plus, CloudUpload, Check, X } from 'lucide-react'
+import { GitBranch, Plus, CloudUpload, CloudDownload, Check, X } from 'lucide-react'
 
 export const BranchControls = (): React.JSX.Element | null => {
-  const { activeRepoId, createBranch, pushChanges, updateRepositoryState, refreshRepository } = useGitStore()
+  const { activeRepoId, createBranch, pushChanges, pullChanges, updateRepositoryState, refreshRepository } = useGitStore()
   const activeRepo = useActiveRepo()
   
   const [isCreating, setIsCreating] = useState(false)
   const [newBranchName, setNewBranchName] = useState('')
   const [isPushing, setIsPushing] = useState(false)
+  const [isPulling, setIsPulling] = useState(false)
 
   if (!activeRepo || !activeRepoId) return null
 
@@ -51,6 +52,12 @@ export const BranchControls = (): React.JSX.Element | null => {
     setIsPushing(false)
   }
 
+  const handlePull = async () => {
+    setIsPulling(true)
+    await pullChanges(activeRepoId)
+    setIsPulling(false)
+  }
+
   return (
     <div className="flex flex-col gap-2 p-3 border-b bg-card/10 shrink-0">
       <div className="flex items-center justify-between gap-2">
@@ -91,6 +98,15 @@ export const BranchControls = (): React.JSX.Element | null => {
             <Plus className="w-3.5 h-3.5" />
           </button>
           
+          <button
+            onClick={handlePull}
+            disabled={isPulling}
+            className="p-1.5 hover:bg-muted/50 text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:pointer-events-none rounded-md border border-border transition-colors outline-none focus-visible:border-[#007acc]"
+            title="Pull changes from upstream"
+          >
+            <CloudDownload className={`w-3.5 h-3.5 ${isPulling ? 'animate-bounce' : ''}`} />
+          </button>
+
           <button
             onClick={handlePush}
             disabled={isPushing}

@@ -116,6 +116,17 @@ export function registerIpcHandlers(): void {
     }
   })
 
+  // Pull
+  ipcMain.handle(IPC_EVENTS.GIT.PULL, async (event, repoPath: string): Promise<IpcResponse> => {
+    try {
+      await gitExecutor.pull(repoPath)
+      event.sender.send(IPC_EVENTS.GIT.REFRESH, repoPath)
+      return { success: true }
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
+  })
+
   // Diff
   ipcMain.handle(
     IPC_EVENTS.GIT.DIFF,
