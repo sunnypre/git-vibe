@@ -5,6 +5,7 @@ GitVibe is a lightweight vibecoded desktop Git command center for developers who
 Anyways... i built because why not and use it in my day to day work. Feel free to open a issue if you enjoy it but find irritating bugs. There probably are a gazillion.
 
 The app is an Electron desktop application with a sandboxed React renderer and a Node.js main process that runs pure Git commands through a typed preload bridge. UI includes a integrated terminal using xterm. 
+![alt text](image-1.png)
 
 ## Installation
 
