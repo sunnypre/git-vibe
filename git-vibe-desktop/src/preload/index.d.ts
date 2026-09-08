@@ -1,10 +1,28 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
 import { GitFile, GitDiff, IpcResponse } from '../shared/types/GitModels'
+import type {
+  LaunchRequest,
+  RepositoryNode,
+  RepositoryNodeKind,
+  SupportedApplication
+} from '../shared/types/RepositoryExplorerModels'
 
 declare global {
   interface Window {
     electron: ElectronAPI
     api: {
+      explorer: {
+        readDirectory: (
+          repositoryRoot: string,
+          relativePath?: string
+        ) => Promise<IpcResponse<RepositoryNode[]>>
+        getApplications: (
+          repositoryRoot: string,
+          relativePath: string,
+          kind: RepositoryNodeKind
+        ) => Promise<IpcResponse<SupportedApplication[]>>
+        openPath: (request: LaunchRequest) => Promise<IpcResponse>
+      }
       git: {
         getStatus: (repoPath: string) => Promise<IpcResponse<GitFile[]>>
         getDiff: (

@@ -2,9 +2,44 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import { IPC_EVENTS } from '../shared/types/IpcEvents'
 import { GitFile, GitDiff, IpcResponse } from '../shared/types/GitModels'
+import type {
+  LaunchRequest,
+  RepositoryNode,
+  RepositoryNodeKind,
+  SupportedApplication
+} from '../shared/types/RepositoryExplorerModels'
 
 // Custom APIs for renderer
 const api = {
+  explorer: {
+    readDirectory: (
+      repositoryRoot: string,
+      relativePath = ''
+    ): Promise<IpcResponse<RepositoryNode[]>> => {
+      if (!repositoryRoot?.trim())
+        return Promise.resolve({ success: false, error: 'Repository path required' })
+      return ipcRenderer.invoke(IPC_EVENTS.FILESYSTEM.READ_DIRECTORY, repositoryRoot, relativePath)
+    },
+    getApplications: (
+      repositoryRoot: string,
+      relativePath: string,
+      kind: RepositoryNodeKind
+    ): Promise<IpcResponse<SupportedApplication[]>> => {
+      if (!repositoryRoot?.trim() || !kind)
+        return Promise.resolve({ success: false, error: 'Target required' })
+      return ipcRenderer.invoke(
+        IPC_EVENTS.LAUNCHER.GET_APPLICATIONS,
+        repositoryRoot,
+        relativePath,
+        kind
+      )
+    },
+    openPath: (request: LaunchRequest): Promise<IpcResponse> => {
+      if (!request?.repositoryRoot?.trim() || !request.applicationId)
+        return Promise.resolve({ success: false, error: 'Invalid launch request' })
+      return ipcRenderer.invoke(IPC_EVENTS.LAUNCHER.OPEN_PATH, request)
+    }
+  },
   git: {
     getStatus: async (repoPath: string): Promise<IpcResponse<GitFile[]>> => {
       if (!repoPath?.trim()) return { success: false, error: 'Invalid repository path' }
@@ -122,7 +157,10 @@ const api = {
         return { success: false, error: (error as Error).message }
       }
     },
-    getUnpushedCommitCount: async (repoPath: string, branch: string): Promise<IpcResponse<number>> => {
+    getUnpushedCommitCount: async (
+      repoPath: string,
+      branch: string
+    ): Promise<IpcResponse<number>> => {
       if (!repoPath?.trim()) return { success: false, error: 'Invalid repository path' }
       if (!branch?.trim()) return { success: false, error: 'Branch name required' }
       try {
@@ -166,8 +204,11 @@ const api = {
     close: (repoId: string): void => {
       ipcRenderer.send('terminal:close', repoId)
     },
-    onData: (callback: (payload: { repoId: string; data: string }) => void): () => void => {
-      const handler = (_event: Electron.IpcRendererEvent, payload: { repoId: string; data: string }) => {
+    onData: (callback: (payload: { repoId: string; data: string }) => void): (() => void) => {
+      const handler = (
+        _event: Electron.IpcRendererEvent,
+        payload: { repoId: string; data: string }
+      ) => {
         callback(payload)
       }
       ipcRenderer.on('terminal:data', handler)

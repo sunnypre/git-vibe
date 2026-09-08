@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { GitRepository, GitFile, GitDiffLine } from '../../../shared/types/GitModels'
+import type { RepositoryNode } from '../../../shared/types/RepositoryExplorerModels'
 
 export interface RepositorySlice extends GitRepository {
   files: GitFile[]
@@ -16,6 +17,12 @@ export interface RepositorySlice extends GitRepository {
   commitMessage: string
   searchQuery: string
   isSearchOpen: boolean
+  isExplorerOpen: boolean
+  explorerChildren: Record<string, RepositoryNode[]>
+  expandedDirectories: string[]
+  explorerLoading: Record<string, boolean>
+  explorerErrors: Record<string, string>
+  openWithTarget: RepositoryNode | null
 }
 
 export interface GitState {
@@ -51,6 +58,10 @@ export interface GitActions {
   setSearchQuery: (id: string, query: string) => void
   setSearchOpen: (id: string, isOpen: boolean) => void
   clearRepositories: () => void
+  toggleExplorer: (id: string) => Promise<void>
+  toggleExplorerDirectory: (id: string, relativePath: string) => Promise<void>
+  loadExplorerDirectory: (id: string, relativePath: string) => Promise<void>
+  setOpenWithTarget: (id: string, target: RepositoryNode | null) => void
 }
 
 const normalizePath = (p: string): string => {
@@ -96,7 +107,13 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
         unpushedCommitCount: 0,
         commitMessage: '',
         searchQuery: '',
-        isSearchOpen: false
+        isSearchOpen: false,
+        isExplorerOpen: false,
+        explorerChildren: {},
+        expandedDirectories: [],
+        explorerLoading: {},
+        explorerErrors: {},
+        openWithTarget: null
       }
 
       return {
@@ -104,11 +121,11 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
         activeRepoId: path
       }
     })
-    
+
     // Save to storage
     const repoPaths = Object.values(get().repositories).map((r) => r.path)
     window.api.git.storeRepositories(repoPaths)
-    
+
     // Trigger refreshes
     get().refreshBranch(path)
     get().refreshStatus(path)
@@ -138,7 +155,7 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
     set((state) => {
       const repoIds = Object.keys(state.repositories)
       const currentIndex = repoIds.indexOf(id)
-      
+
       const nextRepositories = { ...state.repositories }
       delete nextRepositories[id]
 
@@ -168,7 +185,7 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
     set((state) => {
       const pathId = normalizePath(id)
       if (!state.repositories[pathId]) return state
-      
+
       return {
         repositories: {
           ...state.repositories,
@@ -192,14 +209,14 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
     try {
       const response = await window.api.git.getCurrentBranch(repo.path)
       if (response.success) {
-        get().updateRepositoryState(pathId, { 
+        get().updateRepositoryState(pathId, {
           currentBranch: response.data || 'unknown',
           isRefreshing: false,
           lastSyncedAt: Date.now()
         })
         get().refreshUnpushedCommitCount(pathId)
       } else {
-        get().updateRepositoryState(pathId, { 
+        get().updateRepositoryState(pathId, {
           currentBranch: 'error',
           error: response.error || 'Failed to get branch',
           isRefreshing: false
@@ -207,7 +224,7 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
         get().showToast(response.error || 'Failed to get branch', 'error')
       }
     } catch (err: any) {
-      get().updateRepositoryState(pathId, { 
+      get().updateRepositoryState(pathId, {
         currentBranch: 'error',
         error: err.message,
         isRefreshing: false
@@ -234,11 +251,12 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
         const files = response.data || []
         const availablePaths = new Set(files.map((file) => file.path))
         const selectedFilePaths = repo.selectedFilePaths.filter((path) => availablePaths.has(path))
-        const selectedFilePath = repo.selectedFilePath && availablePaths.has(repo.selectedFilePath)
-          ? repo.selectedFilePath
-          : selectedFilePaths[0] || null
+        const selectedFilePath =
+          repo.selectedFilePath && availablePaths.has(repo.selectedFilePath)
+            ? repo.selectedFilePath
+            : selectedFilePaths[0] || null
 
-        get().updateRepositoryState(pathId, { 
+        get().updateRepositoryState(pathId, {
           files,
           selectedFilePath,
           selectedFilePaths,
@@ -251,14 +269,14 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
           get().fetchDiff(pathId, selectedFilePath)
         }
       } else {
-        get().updateRepositoryState(pathId, { 
+        get().updateRepositoryState(pathId, {
           error: response.error || 'Failed to get status',
           isLoading: false
         })
         get().showToast(response.error || 'Failed to get status', 'error')
       }
     } catch (err: any) {
-      get().updateRepositoryState(pathId, { 
+      get().updateRepositoryState(pathId, {
         error: err.message,
         isLoading: false
       })
@@ -297,7 +315,8 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
       const isAlreadySelected = repo.selectedFilePaths.includes(filePath)
       if (isAlreadySelected) {
         selectedFilePaths = repo.selectedFilePaths.filter((path) => path !== filePath)
-        selectedFilePath = repo.selectedFilePath === filePath ? selectedFilePaths[0] || null : repo.selectedFilePath
+        selectedFilePath =
+          repo.selectedFilePath === filePath ? selectedFilePaths[0] || null : repo.selectedFilePath
       } else {
         selectedFilePaths = [...repo.selectedFilePaths, filePath]
         selectedFilePath = filePath
@@ -310,7 +329,7 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
       selectedFilePaths = [filePath]
     }
 
-    get().updateRepositoryState(pathId, { 
+    get().updateRepositoryState(pathId, {
       selectedFilePath,
       selectedFilePaths,
       diffContent: null
@@ -342,21 +361,21 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
     try {
       const response = await window.api.git.getDiff(repo.path, filePath, options)
       if (response.success && response.data) {
-        get().updateRepositoryState(pathId, { 
+        get().updateRepositoryState(pathId, {
           diffContent: response.data.lines,
-          isDiffLoading: false 
+          isDiffLoading: false
         })
       } else {
-        get().updateRepositoryState(pathId, { 
+        get().updateRepositoryState(pathId, {
           error: response.error || 'Failed to fetch diff',
-          isDiffLoading: false 
+          isDiffLoading: false
         })
         get().showToast(response.error || 'Failed to fetch diff', 'error')
       }
     } catch (err: any) {
-      get().updateRepositoryState(pathId, { 
+      get().updateRepositoryState(pathId, {
         error: err.message,
-        isDiffLoading: false 
+        isDiffLoading: false
       })
       get().showToast(err.message, 'error')
     }
@@ -482,7 +501,13 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
   refreshUnpushedCommitCount: async (id) => {
     const pathId = normalizePath(id)
     const repo = get().repositories[pathId]
-    if (!repo || !repo.currentBranch || repo.currentBranch === 'loading...' || repo.currentBranch === 'error') return
+    if (
+      !repo ||
+      !repo.currentBranch ||
+      repo.currentBranch === 'loading...' ||
+      repo.currentBranch === 'error'
+    )
+      return
 
     try {
       const response = await window.api.git.getUnpushedCommitCount(repo.path, repo.currentBranch)
@@ -662,6 +687,57 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
 
   setSearchOpen: (id, isOpen) => {
     get().updateRepositoryState(id, { isSearchOpen: isOpen })
+  },
+
+  toggleExplorer: async (id) => {
+    const repo = get().repositories[normalizePath(id)]
+    if (!repo) return
+    get().updateRepositoryState(id, { isExplorerOpen: !repo.isExplorerOpen })
+    if (!repo.isExplorerOpen && !repo.explorerChildren[''])
+      await get().loadExplorerDirectory(id, '')
+  },
+
+  loadExplorerDirectory: async (id, relativePath) => {
+    const pathId = normalizePath(id)
+    const repo = get().repositories[pathId]
+    if (!repo || repo.explorerLoading[relativePath]) return
+    get().updateRepositoryState(pathId, {
+      explorerLoading: { ...repo.explorerLoading, [relativePath]: true },
+      explorerErrors: { ...repo.explorerErrors, [relativePath]: '' }
+    })
+    const response = await window.api.explorer.readDirectory(repo.path, relativePath)
+    const current = get().repositories[pathId]
+    if (!current || current.path !== repo.path) return
+    if (response.success) {
+      get().updateRepositoryState(pathId, {
+        explorerChildren: { ...current.explorerChildren, [relativePath]: response.data || [] },
+        explorerLoading: { ...current.explorerLoading, [relativePath]: false }
+      })
+    } else {
+      const message = response.error || 'Unable to load directory'
+      get().updateRepositoryState(pathId, {
+        explorerErrors: { ...current.explorerErrors, [relativePath]: message },
+        explorerLoading: { ...current.explorerLoading, [relativePath]: false }
+      })
+      get().showToast(message, 'error')
+    }
+  },
+
+  toggleExplorerDirectory: async (id, relativePath) => {
+    const repo = get().repositories[normalizePath(id)]
+    if (!repo) return
+    const expanded = repo.expandedDirectories.includes(relativePath)
+    get().updateRepositoryState(id, {
+      expandedDirectories: expanded
+        ? repo.expandedDirectories.filter((item) => item !== relativePath)
+        : [...repo.expandedDirectories, relativePath]
+    })
+    if (!expanded && !repo.explorerChildren[relativePath])
+      await get().loadExplorerDirectory(id, relativePath)
+  },
+
+  setOpenWithTarget: (id, target) => {
+    get().updateRepositoryState(id, { openWithTarget: target })
   }
 }))
 

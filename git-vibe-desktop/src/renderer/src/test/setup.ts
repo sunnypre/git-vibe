@@ -20,6 +20,11 @@ window.ResizeObserver = ResizeObserver
 // Mock Electron window.api or other globals if needed
 Object.defineProperty(window, 'electron', {
   value: {
+    explorer: {
+      readDirectory: vi.fn().mockResolvedValue({ success: true, data: [] }),
+      getApplications: vi.fn().mockResolvedValue({ success: true, data: [] }),
+      openPath: vi.fn().mockResolvedValue({ success: true })
+    },
     ipcRenderer: {
       send: vi.fn(),
       on: vi.fn(),
