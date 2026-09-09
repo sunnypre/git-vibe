@@ -1,7 +1,17 @@
 import { useEffect } from 'react'
 import { Panel, PanelGroup } from 'react-resizable-panels'
 import * as Tabs from '@radix-ui/react-tabs'
-import { GitBranch, Plus, X, FileDiff, Terminal as TerminalIcon, Search, Trash2, RefreshCw } from 'lucide-react'
+import {
+  GitBranch,
+  Plus,
+  X,
+  FileDiff,
+  Terminal as TerminalIcon,
+  Search,
+  Trash2,
+  RefreshCw,
+  PanelLeft
+} from 'lucide-react'
 import { ResizeHandle } from './components/ResizeHandle'
 import { useGitStore, useActiveRepo } from './store/useGitStore'
 import { FileList } from './features/Staging/FileList'
@@ -10,15 +20,16 @@ import { BranchControls } from './features/Staging/BranchControls'
 import { CommitBox } from './features/Staging/CommitBox'
 import { TerminalPanel } from './features/Terminal/TerminalPanel'
 import { Toast } from './components/Toast'
+import { RepositoryExplorer } from './features/RepositoryExplorer/RepositoryExplorer'
 
 function App(): React.JSX.Element {
-  const { 
-    repositories, 
-    activeRepoId, 
-    addRepository, 
-    setActiveRepository, 
-    removeRepository, 
-    refreshBranch, 
+  const {
+    repositories,
+    activeRepoId,
+    addRepository,
+    setActiveRepository,
+    removeRepository,
+    refreshBranch,
     refreshStatus,
     stageAllFiles,
     unstageAllFiles,
@@ -38,7 +49,7 @@ function App(): React.JSX.Element {
     }
 
     window.addEventListener('focus', handleFocus)
-    
+
     const cleanupRefresh = window.api.git.onRefresh((repoPath) => {
       // Refresh the specific repo that was mutated
       refreshBranch(repoPath)
@@ -52,24 +63,27 @@ function App(): React.JSX.Element {
   }, [activeRepoId, refreshBranch, refreshStatus])
 
   useEffect(() => {
-    window.api.git.getStoredRepositories().then(async (response) => {
-      if (response.success && response.data && response.data.length > 0) {
-        const validRepos: string[] = []
-        for (const path of response.data) {
-          const branchResponse = await window.api.git.getCurrentBranch(path)
-          if (branchResponse.success) {
-            validRepos.push(path)
-          } else {
-            console.error(`Skipping invalid stored repository: ${path}`)
+    window.api.git
+      .getStoredRepositories()
+      .then(async (response) => {
+        if (response.success && response.data && response.data.length > 0) {
+          const validRepos: string[] = []
+          for (const path of response.data) {
+            const branchResponse = await window.api.git.getCurrentBranch(path)
+            if (branchResponse.success) {
+              validRepos.push(path)
+            } else {
+              console.error(`Skipping invalid stored repository: ${path}`)
+            }
           }
+          validRepos.forEach((path) => {
+            addRepository(path)
+          })
         }
-        validRepos.forEach((path) => {
-          addRepository(path)
-        })
-      }
-    }).catch((err) => {
-      console.error('Failed to load stored repositories:', err)
-    })
+      })
+      .catch((err) => {
+        console.error('Failed to load stored repositories:', err)
+      })
   }, [addRepository])
 
   useEffect(() => {
@@ -87,12 +101,16 @@ function App(): React.JSX.Element {
           }
         }
       }
-      
+
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'r') {
         if (activeRepoId) {
           e.preventDefault()
           refreshRepository(activeRepoId)
         }
+      }
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'e' && activeRepoId) {
+        e.preventDefault()
+        useGitStore.getState().toggleExplorer(activeRepoId)
       }
     }
     window.addEventListener('keydown', handleKeyDown)
@@ -158,12 +176,24 @@ function App(): React.JSX.Element {
           </Tabs.List>
 
           <button
+            onClick={() => activeRepoId && useGitStore.getState().toggleExplorer(activeRepoId)}
+            className={`px-3 h-full flex items-center text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors border-l outline-none focus-visible:ring-1 focus-visible:ring-ring ${activeRepo?.isExplorerOpen ? 'bg-muted text-foreground' : ''}`}
+            title="Toggle repository explorer (Ctrl/Cmd+Shift+E)"
+            aria-label="Toggle repository explorer"
+            disabled={!activeRepoId}
+          >
+            <PanelLeft className="w-4 h-4" />
+          </button>
+
+          <button
             onClick={() => activeRepoId && refreshRepository(activeRepoId)}
             className={`px-3 h-full flex items-center text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors border-l outline-none focus-visible:bg-muted/50 ${!activeRepoId ? 'opacity-50 cursor-not-allowed' : ''}`}
             title="Refresh active repository (Ctrl+R)"
             disabled={!activeRepoId}
           >
-            <RefreshCw className={`w-4 h-4 ${activeRepo?.isRefreshing || activeRepo?.isLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw
+              className={`w-4 h-4 ${activeRepo?.isRefreshing || activeRepo?.isLoading ? 'animate-spin' : ''}`}
+            />
           </button>
 
           <button
@@ -173,7 +203,7 @@ function App(): React.JSX.Element {
           >
             <Plus className="w-4 h-4" />
           </button>
-          
+
           <button
             onClick={() => clearRepositories()}
             className="px-3 h-full flex items-center text-muted-foreground hover:text-red-500 hover:bg-muted/50 transition-colors border-l outline-none focus-visible:bg-muted/50"
@@ -184,148 +214,163 @@ function App(): React.JSX.Element {
         </div>
 
         {activeRepo ? (
-          <Tabs.Content 
-            value={activeRepoId || ''} 
-            className="flex-1 min-h-0 flex flex-col outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset data-[state=active]:flex"
+          <Tabs.Content
+            value={activeRepoId || ''}
+            className="flex-1 min-h-0 flex-row outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset data-[state=active]:flex"
           >
-            <PanelGroup autoSaveId="git-vibe-layout-main" direction="vertical">
-              <Panel defaultSize={70} minSize={30}>
-                <PanelGroup autoSaveId="git-vibe-layout-upper" direction="horizontal">
-                  <Panel defaultSize={30} minSize={20}>
-                    <div className="h-full w-full flex flex-col bg-card/30">
-                      {/* Branch management dropdown & buttons */}
-                      <BranchControls />
+            <RepositoryExplorer repoId={activeRepoId!} />
+            <div className="flex-1 min-w-0 h-full">
+              <PanelGroup autoSaveId="git-vibe-layout-main" direction="vertical">
+                <Panel defaultSize={70} minSize={30}>
+                  <PanelGroup autoSaveId="git-vibe-layout-upper" direction="horizontal">
+                    <Panel defaultSize={30} minSize={20}>
+                      <div className="h-full w-full flex flex-col bg-card/30">
+                        {/* Branch management dropdown & buttons */}
+                        <BranchControls />
 
-                      <div className="px-4 py-2 border-b bg-muted/10 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            ref={(el) => {
-                              if (el) {
-                                const someStaged = activeRepo.files.some((f) => f.isStaged)
-                                const someUnstaged = activeRepo.files.some((f) => !f.isStaged)
-                                el.indeterminate = someStaged && someUnstaged
-                              }
-                            }}
-                            checked={activeRepo.files.length > 0 && activeRepo.files.every((f) => f.isStaged)}
-                            onChange={async () => {
-                              if (activeRepoId) {
-                                const allStaged = activeRepo.files.length > 0 && activeRepo.files.every((f) => f.isStaged)
-                                if (allStaged) {
-                                  await unstageAllFiles(activeRepoId)
-                                } else {
-                                  await stageAllFiles(activeRepoId)
+                        <div className="px-4 py-2 border-b bg-muted/10 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              ref={(el) => {
+                                if (el) {
+                                  const someStaged = activeRepo.files.some((f) => f.isStaged)
+                                  const someUnstaged = activeRepo.files.some((f) => !f.isStaged)
+                                  el.indeterminate = someStaged && someUnstaged
                                 }
+                              }}
+                              checked={
+                                activeRepo.files.length > 0 &&
+                                activeRepo.files.every((f) => f.isStaged)
                               }
-                            }}
-                            className="w-3.5 h-3.5 rounded border-muted-foreground/50 bg-transparent accent-[#007acc] cursor-pointer"
-                            disabled={activeRepo.files.length === 0}
-                            title={activeRepo.files.length > 0 && activeRepo.files.every((f) => f.isStaged) ? 'Unstage all changes' : 'Stage all changes'}
-                          />
-                          <FileDiff className="w-4 h-4 text-muted-foreground" />
-                          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                            Changes ({activeRepo.files.length})
-                          </h2>
-                        </div>
-                        <button
-                          onClick={() => {
-                            if (activeRepoId) {
-                              const nextOpen = !activeRepo.isSearchOpen
-                              setSearchOpen(activeRepoId, nextOpen)
-                              if (!nextOpen) {
-                                setSearchQuery(activeRepoId, '')
+                              onChange={async () => {
+                                if (activeRepoId) {
+                                  const allStaged =
+                                    activeRepo.files.length > 0 &&
+                                    activeRepo.files.every((f) => f.isStaged)
+                                  if (allStaged) {
+                                    await unstageAllFiles(activeRepoId)
+                                  } else {
+                                    await stageAllFiles(activeRepoId)
+                                  }
+                                }
+                              }}
+                              className="w-3.5 h-3.5 rounded border-muted-foreground/50 bg-transparent accent-[#007acc] cursor-pointer"
+                              disabled={activeRepo.files.length === 0}
+                              title={
+                                activeRepo.files.length > 0 &&
+                                activeRepo.files.every((f) => f.isStaged)
+                                  ? 'Unstage all changes'
+                                  : 'Stage all changes'
                               }
-                            }
-                          }}
-                          className={`p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors outline-none focus-visible:ring-1 focus-visible:ring-ring ${
-                            activeRepo.isSearchOpen ? 'bg-muted text-foreground' : ''
-                          }`}
-                          title="Toggle search (Ctrl+F)"
-                        >
-                          <Search className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-
-                      {/* Search Bar */}
-                      {activeRepo.isSearchOpen && (
-                        <div className="px-4 py-1.5 border-b bg-muted/5 flex items-center gap-2 animate-in fade-in slide-in-from-top-2 duration-150">
-                          <Search className="w-3.5 h-3.5 text-muted-foreground" />
-                          <input
-                            type="text"
-                            placeholder="Search files..."
-                            value={activeRepo.searchQuery}
-                            onChange={(e) => {
-                              if (activeRepoId) {
-                                setSearchQuery(activeRepoId, e.target.value)
-                              }
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Escape' && activeRepoId) {
-                                setSearchOpen(activeRepoId, false)
-                                setSearchQuery(activeRepoId, '')
-                              }
-                            }}
-                            autoFocus
-                            className="flex-1 bg-transparent border-none outline-none text-xs text-foreground placeholder:text-muted-foreground/60 h-6"
-                          />
+                            />
+                            <FileDiff className="w-4 h-4 text-muted-foreground" />
+                            <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                              Changes ({activeRepo.files.length})
+                            </h2>
+                          </div>
                           <button
                             onClick={() => {
                               if (activeRepoId) {
-                                setSearchOpen(activeRepoId, false)
-                                setSearchQuery(activeRepoId, '')
+                                const nextOpen = !activeRepo.isSearchOpen
+                                setSearchOpen(activeRepoId, nextOpen)
+                                if (!nextOpen) {
+                                  setSearchQuery(activeRepoId, '')
+                                }
                               }
                             }}
-                            className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors"
-                            title="Close search"
+                            className={`p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors outline-none focus-visible:ring-1 focus-visible:ring-ring ${
+                              activeRepo.isSearchOpen ? 'bg-muted text-foreground' : ''
+                            }`}
+                            title="Toggle search (Ctrl+F)"
                           >
-                            <X className="w-3.5 h-3.5" />
+                            <Search className="w-3.5 h-3.5" />
                           </button>
                         </div>
-                      )}
-                      
-                      {/* Staged/Unstaged list */}
-                      <div className="flex-1 min-h-0 flex flex-col">
-                        <FileList />
-                      </div>
 
-                      {/* Commit draft and action box */}
-                      <CommitBox />
+                        {/* Search Bar */}
+                        {activeRepo.isSearchOpen && (
+                          <div className="px-4 py-1.5 border-b bg-muted/5 flex items-center gap-2 animate-in fade-in slide-in-from-top-2 duration-150">
+                            <Search className="w-3.5 h-3.5 text-muted-foreground" />
+                            <input
+                              type="text"
+                              placeholder="Search files..."
+                              value={activeRepo.searchQuery}
+                              onChange={(e) => {
+                                if (activeRepoId) {
+                                  setSearchQuery(activeRepoId, e.target.value)
+                                }
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Escape' && activeRepoId) {
+                                  setSearchOpen(activeRepoId, false)
+                                  setSearchQuery(activeRepoId, '')
+                                }
+                              }}
+                              autoFocus
+                              className="flex-1 bg-transparent border-none outline-none text-xs text-foreground placeholder:text-muted-foreground/60 h-6"
+                            />
+                            <button
+                              onClick={() => {
+                                if (activeRepoId) {
+                                  setSearchOpen(activeRepoId, false)
+                                  setSearchQuery(activeRepoId, '')
+                                }
+                              }}
+                              className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors"
+                              title="Close search"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Staged/Unstaged list */}
+                        <div className="flex-1 min-h-0 flex flex-col">
+                          <FileList />
+                        </div>
+
+                        {/* Commit draft and action box */}
+                        <CommitBox />
+                      </div>
+                    </Panel>
+
+                    <ResizeHandle direction="horizontal" />
+
+                    <Panel defaultSize={70} minSize={30}>
+                      <div className="h-full w-full flex flex-col">
+                        <div className="px-4 py-2 border-b bg-muted/10 flex items-center gap-2">
+                          <FileDiff className="w-4 h-4 text-muted-foreground" />
+                          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                            Diff Explorer
+                          </h2>
+                        </div>
+                        <div className="flex-1 min-h-0 flex flex-col">
+                          <DiffViewer />
+                        </div>
+                      </div>
+                    </Panel>
+                  </PanelGroup>
+                </Panel>
+
+                <ResizeHandle direction="vertical" />
+
+                <Panel defaultSize={30} minSize={15}>
+                  <div className="h-full w-full flex flex-col bg-muted/10">
+                    <div className="px-4 py-1.5 border-b bg-muted/10 flex items-center gap-2">
+                      <TerminalIcon className="w-4 h-4 text-muted-foreground" />
+                      <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                        Terminal
+                      </h2>
                     </div>
-                  </Panel>
-
-                  <ResizeHandle direction="horizontal" />
-
-                  <Panel defaultSize={70} minSize={30}>
-                    <div className="h-full w-full flex flex-col">
-                      <div className="px-4 py-2 border-b bg-muted/10 flex items-center gap-2">
-                        <FileDiff className="w-4 h-4 text-muted-foreground" />
-                        <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                          Diff Explorer
-                        </h2>
-                      </div>
-                      <div className="flex-1 min-h-0 flex flex-col">
-                        <DiffViewer />
-                      </div>
+                    {/* xterm.js integrated terminal pane */}
+                    <div className="flex-1 min-h-0">
+                      <TerminalPanel repoId={activeRepoId!} repoPath={activeRepo.path} />
                     </div>
-                  </Panel>
-                </PanelGroup>
-              </Panel>
-
-              <ResizeHandle direction="vertical" />
-
-              <Panel defaultSize={30} minSize={15}>
-                <div className="h-full w-full flex flex-col bg-muted/10">
-                  <div className="px-4 py-1.5 border-b bg-muted/10 flex items-center gap-2">
-                    <TerminalIcon className="w-4 h-4 text-muted-foreground" />
-                    <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Terminal</h2>
                   </div>
-                  {/* xterm.js integrated terminal pane */}
-                  <div className="flex-1 min-h-0">
-                    <TerminalPanel repoId={activeRepoId!} repoPath={activeRepo.path} />
-                  </div>
-                </div>
-              </Panel>
-            </PanelGroup>
+                </Panel>
+              </PanelGroup>
+            </div>
           </Tabs.Content>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-4">
