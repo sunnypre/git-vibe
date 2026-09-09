@@ -1,5 +1,6 @@
 import { access } from 'node:fs/promises'
-import { existsSync } from 'node:fs'
+import { existsSync, readdirSync } from 'node:fs'
+import { homedir } from 'node:os'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
 import type {
@@ -24,23 +25,46 @@ export class ExternalApplicationService {
           id: 'vscode',
           name: 'Visual Studio Code',
           command: '/usr/bin/open',
-          prefix: ['-a', 'Visual Studio Code']
-        },
-        { id: 'rider', name: 'JetBrains Rider', command: '/usr/bin/open', prefix: ['-a', 'Rider'] }
-      ]
-    if (this.platform === 'win32') {
-      const local = this.env.LOCALAPPDATA || ''
-      const pf = this.env.ProgramFiles || 'C:\\Program Files'
-      return [
-        {
-          id: 'vscode',
-          name: 'Visual Studio Code',
-          command: path.join(local, 'Programs', 'Microsoft VS Code', 'Code.exe')
+          prefix: ['-b', 'com.microsoft.VSCode']
         },
         {
           id: 'rider',
           name: 'JetBrains Rider',
-          command: path.join(local, 'Programs', 'JetBrains', 'Rider', 'bin', 'rider64.exe')
+          command: '/usr/bin/open',
+          prefix: ['-b', 'com.jetbrains.rider']
+        }
+      ]
+    if (this.platform === 'win32') {
+      const local = this.env.LOCALAPPDATA || ''
+      const pf = this.env.ProgramFiles || 'C:\\Program Files'
+      const pf86 = this.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)'
+      const vscode = this.firstExisting([
+        this.findOnPath('code.cmd'),
+        path.join(local, 'Programs', 'Microsoft VS Code', 'Code.exe'),
+        path.join(pf, 'Microsoft VS Code', 'Code.exe'),
+        path.join(pf86, 'Microsoft VS Code', 'Code.exe')
+      ])
+      const riderCandidates = [
+        this.findOnPath('rider64.exe'),
+        path.join(pf, 'JetBrains', 'JetBrains Rider', 'bin', 'rider64.exe'),
+        path.join(pf86, 'JetBrains', 'JetBrains Rider', 'bin', 'rider64.exe')
+      ]
+      const toolboxRoot = path.join(homedir(), 'AppData', 'Local', 'JetBrains', 'Installations')
+      if (existsSync(toolboxRoot)) {
+        for (const installation of readdirSync(toolboxRoot)) {
+          riderCandidates.push(path.join(toolboxRoot, installation, 'bin', 'rider64.exe'))
+        }
+      }
+      return [
+        {
+          id: 'vscode',
+          name: 'Visual Studio Code',
+          command: vscode
+        },
+        {
+          id: 'rider',
+          name: 'JetBrains Rider',
+          command: this.firstExisting(riderCandidates)
         },
         {
           id: 'visual-studio',
@@ -68,6 +92,10 @@ export class ExternalApplicationService {
       .split(path.delimiter)
       .find((part) => part && this.existsSync(path.join(part, name)))
     return directory ? path.join(directory, name) : name
+  }
+
+  private firstExisting(candidates: string[]): string {
+    return candidates.find((candidate) => candidate && this.existsSync(candidate)) || candidates[0]
   }
 
   private existsSync(file: string): boolean {
@@ -112,14 +140,13 @@ export class ExternalApplicationService {
       throw new Error('Application is unavailable or incompatible')
     await new Promise<void>((resolve, reject) => {
       const child = spawn(app.command, [...(app.prefix || []), target], {
-        detached: true,
         stdio: 'ignore',
         shell: false
       })
       child.once('error', reject)
-      child.once('spawn', () => {
-        child.unref()
-        resolve()
+      child.once('close', (code) => {
+        if (code === 0) resolve()
+        else reject(new Error(`${app.name} could not open the selected path (exit code ${code})`))
       })
     })
   }

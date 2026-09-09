@@ -14,9 +14,25 @@ export function FileTreeNode({
   const repo = useGitStore((state) => state.repositories[repoId])
   const toggle = useGitStore((state) => state.toggleExplorerDirectory)
   const setTarget = useGitStore((state) => state.setOpenWithTarget)
+  const showToast = useGitStore((state) => state.showToast)
   const expanded = repo.expandedDirectories.includes(node.relativePath)
   const children = repo.explorerChildren[node.relativePath]
-  const canOpen = node.kind === 'directory' || /\.slnx?$/i.test(node.name)
+  const isSolution = node.kind === 'file' && /\.slnx?$/i.test(node.name)
+  const canOpen = node.kind === 'directory' || isSolution
+
+  const openWithRider = async (event: React.MouseEvent) => {
+    event.stopPropagation()
+    const response = await window.api.explorer.openPath({
+      repositoryRoot: repo.path,
+      relativePath: node.relativePath,
+      kind: node.kind,
+      applicationId: 'rider'
+    })
+    showToast(
+      response.success ? `Opened ${node.name} with Rider` : response.error || 'Unable to open with Rider',
+      response.success ? 'success' : 'error'
+    )
+  }
 
   return (
     <div role="treeitem" aria-expanded={node.kind === 'directory' ? expanded : undefined}>
@@ -62,6 +78,16 @@ export function FileTreeNode({
             onClick={() => setTarget(repoId, node)}
           >
             <ExternalLink className="w-3 h-3" />
+          </button>
+        )}
+        {isSolution && (
+          <button
+            className="p-1 mr-1 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 rounded focus-visible:ring-1 focus-visible:ring-ring text-orange-400"
+            aria-label={`Open ${node.name} with Rider`}
+            title="Open with Rider"
+            onClick={openWithRider}
+          >
+            R
           </button>
         )}
       </div>
