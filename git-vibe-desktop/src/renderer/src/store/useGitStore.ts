@@ -705,16 +705,27 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
       explorerLoading: { ...repo.explorerLoading, [relativePath]: true },
       explorerErrors: { ...repo.explorerErrors, [relativePath]: '' }
     })
-    const response = await window.api.explorer.readDirectory(repo.path, relativePath)
-    const current = get().repositories[pathId]
-    if (!current || current.path !== repo.path) return
-    if (response.success) {
-      get().updateRepositoryState(pathId, {
-        explorerChildren: { ...current.explorerChildren, [relativePath]: response.data || [] },
-        explorerLoading: { ...current.explorerLoading, [relativePath]: false }
-      })
-    } else {
-      const message = response.error || 'Unable to load directory'
+    try {
+      const response = await window.api.explorer.readDirectory(repo.path, relativePath)
+      const current = get().repositories[pathId]
+      if (!current || current.path !== repo.path) return
+      if (response.success) {
+        get().updateRepositoryState(pathId, {
+          explorerChildren: { ...current.explorerChildren, [relativePath]: response.data || [] },
+          explorerLoading: { ...current.explorerLoading, [relativePath]: false }
+        })
+      } else {
+        const message = response.error || 'Unable to load directory'
+        get().updateRepositoryState(pathId, {
+          explorerErrors: { ...current.explorerErrors, [relativePath]: message },
+          explorerLoading: { ...current.explorerLoading, [relativePath]: false }
+        })
+        get().showToast(message, 'error')
+      }
+    } catch (error: unknown) {
+      const current = get().repositories[pathId]
+      if (!current || current.path !== repo.path) return
+      const message = error instanceof Error ? error.message : 'Unable to load directory'
       get().updateRepositoryState(pathId, {
         explorerErrors: { ...current.explorerErrors, [relativePath]: message },
         explorerLoading: { ...current.explorerLoading, [relativePath]: false }
