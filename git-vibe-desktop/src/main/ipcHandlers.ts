@@ -4,6 +4,7 @@ import { GitExecutor } from './services/GitExecutor'
 import { TerminalService } from './services/TerminalService'
 import { StorageService } from './services/StorageService'
 import { IpcResponse, GitFile, GitDiff } from '../shared/types/GitModels'
+import type { GitWorktree } from '../shared/types/GitModels'
 import type {
   LaunchRequest,
   RepositoryNode,
@@ -158,6 +159,19 @@ export function registerIpcHandlers(): void {
     } catch (error: any) {
       return { success: false, error: error.message }
     }
+  })
+
+  ipcMain.handle(IPC_EVENTS.GIT.WORKTREE_LIST, async (_, repoPath: string): Promise<IpcResponse<GitWorktree[]>> => {
+    try { return { success: true, data: await gitExecutor.getWorktrees(repoPath) } }
+    catch (error: any) { return { success: false, error: error.message } }
+  })
+  ipcMain.handle(IPC_EVENTS.GIT.WORKTREE_ADD, async (event, repoPath: string, path: string, branch: string): Promise<IpcResponse> => {
+    try { await gitExecutor.addWorktree(repoPath, path, branch); event.sender.send(IPC_EVENTS.GIT.REFRESH, repoPath); return { success: true } }
+    catch (error: any) { return { success: false, error: error.message } }
+  })
+  ipcMain.handle(IPC_EVENTS.GIT.WORKTREE_REMOVE, async (event, repoPath: string, path: string): Promise<IpcResponse> => {
+    try { await gitExecutor.removeWorktree(repoPath, path); event.sender.send(IPC_EVENTS.GIT.REFRESH, repoPath); return { success: true } }
+    catch (error: any) { return { success: false, error: error.message } }
   })
 
   // Create branch

@@ -1,5 +1,5 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
-import { GitFile, GitDiff, IpcResponse } from '../shared/types/GitModels'
+import { GitFile, GitDiff, GitWorktree, IpcResponse } from '../shared/types/GitModels'
 import type {
   LaunchRequest,
   RepositoryNode,
@@ -45,6 +45,9 @@ declare global {
         checkout: (repoPath: string, target: string) => Promise<IpcResponse>
         selectDirectory: () => Promise<string | null>
         getBranches: (repoPath: string) => Promise<IpcResponse<string[]>>
+        getWorktrees: (repoPath: string) => Promise<IpcResponse<GitWorktree[]>>
+        addWorktree: (repoPath: string, path: string, branch: string) => Promise<IpcResponse>
+        removeWorktree: (repoPath: string, path: string) => Promise<IpcResponse>
         createBranch: (repoPath: string, name: string) => Promise<IpcResponse>
         push: (repoPath: string, branch: string) => Promise<IpcResponse>
         pull: (repoPath: string) => Promise<IpcResponse>

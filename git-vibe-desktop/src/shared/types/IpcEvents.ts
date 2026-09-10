@@ -12,6 +12,9 @@ export const IPC_EVENTS = {
     DIFF: 'git:diff',
     CHECKOUT: 'git:checkout',
     REFRESH: 'git:refresh'
+    ,WORKTREE_LIST: 'git:worktreeList'
+    ,WORKTREE_ADD: 'git:worktreeAdd'
+    ,WORKTREE_REMOVE: 'git:worktreeRemove'
   },
   WINDOW: {
     MINIMIZE: 'window:minimize',

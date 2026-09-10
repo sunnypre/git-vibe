@@ -14,6 +14,15 @@ export interface GitRepository {
   currentBranch: string
 }
 
+export interface GitWorktree {
+  path: string
+  branch: string | null
+  commit: string
+  isMain: boolean
+  locked: boolean
+  prunable: boolean
+}
+
 export interface GitDiffLine {
   content: string
   type: 'addition' | 'deletion' | 'context' | 'header'

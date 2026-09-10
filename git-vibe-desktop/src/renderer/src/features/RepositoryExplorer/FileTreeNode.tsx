@@ -41,7 +41,7 @@ export function FileTreeNode({
       event,
       () =>
         window.api.explorer.openPath({
-          repositoryRoot: repo.path,
+          repositoryRoot: repo.activeWorktreePath,
           relativePath: node.relativePath,
           kind: 'directory',
           applicationId: 'vscode'
@@ -53,7 +53,7 @@ export function FileTreeNode({
   const openDirectoryInFileManager = (event: React.MouseEvent): Promise<void> =>
     runDirectoryAction(
       event,
-      () => window.api.explorer.openInFileManager(repo.path, node.relativePath),
+      () => window.api.explorer.openInFileManager(repo.activeWorktreePath, node.relativePath),
       `Opened ${node.name} in file manager`,
       'Unable to open in file manager'
     )
@@ -61,7 +61,7 @@ export function FileTreeNode({
   const openWithRider = async (event: React.MouseEvent): Promise<void> => {
     event.stopPropagation()
     const response = await window.api.explorer.openPath({
-      repositoryRoot: repo.path,
+      repositoryRoot: repo.activeWorktreePath,
       relativePath: node.relativePath,
       kind: node.kind,
       applicationId: 'rider'

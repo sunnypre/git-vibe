@@ -17,18 +17,18 @@ export function OpenWithDialog({ repoId }: { repoId: string }): React.JSX.Elemen
     if (!target) return
     setSelected('')
     window.api.explorer
-      .getApplications(repo.path, target.relativePath, target.kind)
+      .getApplications(repo.activeWorktreePath, target.relativePath, target.kind)
       .then((response) => {
         if (response.success) setApplications(response.data || [])
         else showToast(response.error || 'Application discovery failed', 'error')
       })
     requestAnimationFrame(() => confirmRef.current?.focus())
-  }, [target, repo.path, showToast])
+  }, [target, repo.activeWorktreePath, showToast])
   if (!target) return null
   const launch = async () => {
     if (!selected) return
     const response = await window.api.explorer.openPath({
-      repositoryRoot: repo.path,
+      repositoryRoot: repo.activeWorktreePath,
       relativePath: target.relativePath,
       kind: target.kind,
       applicationId: selected
