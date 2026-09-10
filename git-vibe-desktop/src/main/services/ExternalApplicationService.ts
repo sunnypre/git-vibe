@@ -136,8 +136,14 @@ export class ExternalApplicationService {
     )
     const app = this.catalog().find((candidate) => candidate.id === request.applicationId)
     const available = await this.getApplications(request.kind, request.relativePath)
-    if (!app || !available.some((candidate) => candidate.id === app.id))
-      throw new Error('Application is unavailable or incompatible')
+    if (!app) throw new Error('Unknown application')
+    if (!available.some((candidate) => candidate.id === app.id)) {
+      throw new Error(
+        app.id === 'rider'
+          ? 'Rider is unavailable. Check the configured Rider executable path.'
+          : `${app.name} is unavailable or incompatible`
+      )
+    }
     await new Promise<void>((resolve, reject) => {
       const child = spawn(app.command, [...(app.prefix || []), target], {
         stdio: 'ignore',

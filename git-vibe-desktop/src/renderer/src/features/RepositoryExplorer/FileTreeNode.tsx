@@ -1,4 +1,5 @@
-import { ChevronRight, File, Folder, FolderOpen, ExternalLink } from 'lucide-react'
+import { useState } from 'react'
+import { ChevronRight, File, Folder, FolderOpen, ExternalLink, LoaderCircle } from 'lucide-react'
 import type { RepositoryNode } from '../../../../shared/types/RepositoryExplorerModels'
 import { useGitStore } from '../../store/useGitStore'
 
@@ -15,23 +16,47 @@ export function FileTreeNode({
   const toggle = useGitStore((state) => state.toggleExplorerDirectory)
   const setTarget = useGitStore((state) => state.setOpenWithTarget)
   const showToast = useGitStore((state) => state.showToast)
+  const [isOpeningRider, setIsOpeningRider] = useState(false)
   const expanded = repo.expandedDirectories.includes(node.relativePath)
   const children = repo.explorerChildren[node.relativePath]
   const isSolution = node.kind === 'file' && /\.slnx?$/i.test(node.name)
-  const canOpen = node.kind === 'directory' || isSolution
 
-  const openWithRider = async (event: React.MouseEvent) => {
+  const openWithRider = async (event: React.MouseEvent): Promise<void> => {
     event.stopPropagation()
-    const response = await window.api.explorer.openPath({
-      repositoryRoot: repo.path,
-      relativePath: node.relativePath,
-      kind: node.kind,
-      applicationId: 'rider'
-    })
-    showToast(
-      response.success ? `Opened ${node.name} with Rider` : response.error || 'Unable to open with Rider',
-      response.success ? 'success' : 'error'
-    )
+    if (isOpeningRider) return
+    setIsOpeningRider(true)
+    try {
+      const availability = await window.api.explorer.getApplications(
+        repo.path,
+        node.relativePath,
+        node.kind
+      )
+      if (
+        !availability.success ||
+        !availability.data?.some((application) => application.id === 'rider')
+      ) {
+        showToast(
+          availability.error || 'Rider is unavailable. Check the configured Rider executable path.',
+          'error'
+        )
+        return
+      }
+
+      const response = await window.api.explorer.openPath({
+        repositoryRoot: repo.path,
+        relativePath: node.relativePath,
+        kind: node.kind,
+        applicationId: 'rider'
+      })
+      showToast(
+        response.success
+          ? `Opened ${node.name} with Rider`
+          : response.error || 'Unable to open with Rider',
+        response.success ? 'success' : 'error'
+      )
+    } finally {
+      setIsOpeningRider(false)
+    }
   }
 
   return (
@@ -70,7 +95,7 @@ export function FileTreeNode({
           )}
           <span className="truncate">{node.name}</span>
         </button>
-        {canOpen && (
+        {node.kind === 'directory' && (
           <button
             className="p-1 mr-1 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 rounded focus-visible:ring-1 focus-visible:ring-ring"
             aria-label={`Open ${node.name} with application`}
@@ -86,8 +111,18 @@ export function FileTreeNode({
             aria-label={`Open ${node.name} with Rider`}
             title="Open with Rider"
             onClick={openWithRider}
+            disabled={isOpeningRider}
           >
-            R
+            {isOpeningRider ? (
+              <LoaderCircle className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
+            ) : (
+              <span
+                aria-hidden="true"
+                className="flex h-4 w-4 items-center justify-center rounded-sm bg-gradient-to-br from-fuchsia-500 via-red-500 to-amber-400 text-[7px] font-black leading-none text-white shadow-sm"
+              >
+                RD
+              </span>
+            )}
           </button>
         )}
       </div>
