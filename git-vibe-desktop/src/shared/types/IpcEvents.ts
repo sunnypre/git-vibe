@@ -19,5 +19,10 @@ export const IPC_EVENTS = {
     CLOSE: 'window:close'
   },
   FILESYSTEM: { READ_DIRECTORY: 'filesystem:readDirectory' },
-  LAUNCHER: { GET_APPLICATIONS: 'launcher:getApplications', OPEN_PATH: 'launcher:openPath' }
+  LAUNCHER: { GET_APPLICATIONS: 'launcher:getApplications', OPEN_PATH: 'launcher:openPath' },
+  SETTINGS: {
+    GET: 'settings:get',
+    SAVE: 'settings:save',
+    SELECT_EXECUTABLE: 'settings:selectExecutable'
+  }
 } as const

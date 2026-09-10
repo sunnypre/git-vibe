@@ -8,9 +8,18 @@ import type {
   RepositoryNodeKind,
   SupportedApplication
 } from '../shared/types/RepositoryExplorerModels'
+import type { ApplicationSettings } from '../shared/types/ApplicationSettings'
 
 // Custom APIs for renderer
 const api = {
+  settings: {
+    get: (): Promise<IpcResponse<ApplicationSettings>> =>
+      ipcRenderer.invoke(IPC_EVENTS.SETTINGS.GET),
+    save: (settings: ApplicationSettings): Promise<IpcResponse> =>
+      ipcRenderer.invoke(IPC_EVENTS.SETTINGS.SAVE, settings),
+    selectExecutable: (): Promise<string | null> =>
+      ipcRenderer.invoke(IPC_EVENTS.SETTINGS.SELECT_EXECUTABLE)
+  },
   explorer: {
     readDirectory: (
       repositoryRoot: string,

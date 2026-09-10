@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Panel, PanelGroup } from 'react-resizable-panels'
 import * as Tabs from '@radix-ui/react-tabs'
 import {
@@ -10,7 +10,8 @@ import {
   Search,
   Trash2,
   RefreshCw,
-  PanelLeft
+  PanelLeft,
+  Settings
 } from 'lucide-react'
 import { ResizeHandle } from './components/ResizeHandle'
 import { useGitStore, useActiveRepo } from './store/useGitStore'
@@ -21,8 +22,10 @@ import { CommitBox } from './features/Staging/CommitBox'
 import { TerminalPanel } from './features/Terminal/TerminalPanel'
 import { Toast } from './components/Toast'
 import { RepositoryExplorer } from './features/RepositoryExplorer/RepositoryExplorer'
+import { SettingsDialog } from './components/SettingsDialog'
 
 function App(): React.JSX.Element {
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const {
     repositories,
     activeRepoId,
@@ -174,6 +177,15 @@ function App(): React.JSX.Element {
               )
             })}
           </Tabs.List>
+
+          <button
+            onClick={() => setSettingsOpen(true)}
+            className="px-3 h-full flex items-center text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors border-l outline-none focus-visible:bg-muted/50"
+            title="Application settings"
+            aria-label="Application settings"
+          >
+            <Settings className="w-4 h-4" />
+          </button>
 
           <button
             onClick={() => activeRepoId && useGitStore.getState().toggleExplorer(activeRepoId)}
@@ -405,6 +417,7 @@ function App(): React.JSX.Element {
 
       {/* Centralized application alert notification */}
       <Toast />
+      <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   )
 }

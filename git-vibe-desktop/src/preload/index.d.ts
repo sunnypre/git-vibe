@@ -6,11 +6,17 @@ import type {
   RepositoryNodeKind,
   SupportedApplication
 } from '../shared/types/RepositoryExplorerModels'
+import type { ApplicationSettings } from '../shared/types/ApplicationSettings'
 
 declare global {
   interface Window {
     electron: ElectronAPI
     api: {
+      settings: {
+        get: () => Promise<IpcResponse<ApplicationSettings>>
+        save: (settings: ApplicationSettings) => Promise<IpcResponse>
+        selectExecutable: () => Promise<string | null>
+      }
       explorer: {
         readDirectory: (
           repositoryRoot: string,

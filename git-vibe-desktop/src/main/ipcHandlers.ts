@@ -12,12 +12,51 @@ import type {
 } from '../shared/types/RepositoryExplorerModels'
 import { RepositoryExplorerService } from './services/RepositoryExplorerService'
 import { ExternalApplicationService } from './services/ExternalApplicationService'
+import type { ApplicationSettings } from '../shared/types/ApplicationSettings'
 
 export function registerIpcHandlers(): void {
   const gitExecutor = GitExecutor.getInstance()
   const terminalService = TerminalService.getInstance()
   const explorerService = new RepositoryExplorerService()
-  const applicationService = new ExternalApplicationService()
+  const applicationService = new ExternalApplicationService(process.platform, process.env, () =>
+    StorageService.getSettings()
+  )
+
+  ipcMain.handle(IPC_EVENTS.SETTINGS.GET, async (): Promise<IpcResponse<ApplicationSettings>> => {
+    try {
+      return { success: true, data: StorageService.getSettings() }
+    } catch (error: unknown) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unable to load settings'
+      }
+    }
+  })
+
+  ipcMain.handle(
+    IPC_EVENTS.SETTINGS.SAVE,
+    async (_, settings: ApplicationSettings): Promise<IpcResponse> => {
+      try {
+        StorageService.saveSettings(settings)
+        return { success: true }
+      } catch (error: unknown) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Unable to save settings'
+        }
+      }
+    }
+  )
+
+  ipcMain.handle(IPC_EVENTS.SETTINGS.SELECT_EXECUTABLE, async (event): Promise<string | null> => {
+    const window = BrowserWindow.fromWebContents(event.sender)
+    if (!window) return null
+    const { canceled, filePaths } = await dialog.showOpenDialog(window, {
+      title: 'Select application executable',
+      properties: ['openFile']
+    })
+    return canceled ? null : filePaths[0]
+  })
 
   ipcMain.handle(
     IPC_EVENTS.FILESYSTEM.READ_DIRECTORY,
