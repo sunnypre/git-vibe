@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useGitStore, useActiveRepo } from '../../store/useGitStore'
-import { GitBranch, Plus, CloudUpload, CloudDownload, Check, X, Search, ChevronDown } from 'lucide-react'
+import { GitBranch, Plus, CloudUpload, CloudDownload, Check, X, Search, ChevronDown, GitFork } from 'lucide-react'
 
 export const BranchControls = (): React.JSX.Element | null => {
-  const { activeRepoId, createBranch, pushChanges, pullChanges, updateRepositoryState, refreshRepository } = useGitStore()
+  const { activeRepoId, createBranch, pushChanges, pullChanges, updateRepositoryState, refreshRepository, toggleWorktree } = useGitStore()
   const activeRepo = useActiveRepo()
   
   const [isCreating, setIsCreating] = useState(false)
@@ -78,6 +78,9 @@ export const BranchControls = (): React.JSX.Element | null => {
     <div className="flex flex-col gap-2 p-3 border-b bg-card/10 shrink-0">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 min-w-0 flex-1 relative">
+          <button onClick={() => toggleWorktree(activeRepoId)} className="p-1.5 hover:bg-muted/50 text-muted-foreground hover:text-foreground rounded-md border border-border" title="Manage worktrees" aria-label="Manage worktrees">
+            <GitFork className="w-3.5 h-3.5" />
+          </button>
           <GitBranch className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
           <div className="relative flex-1 min-w-0" ref={dropdownRef}>
             <button

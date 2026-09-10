@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Panel, PanelGroup } from 'react-resizable-panels'
 import * as Tabs from '@radix-ui/react-tabs'
 import {
@@ -10,7 +10,8 @@ import {
   Search,
   Trash2,
   RefreshCw,
-  PanelLeft
+  PanelLeft,
+  Settings
 } from 'lucide-react'
 import { ResizeHandle } from './components/ResizeHandle'
 import { useGitStore, useActiveRepo } from './store/useGitStore'
@@ -21,8 +22,11 @@ import { CommitBox } from './features/Staging/CommitBox'
 import { TerminalPanel } from './features/Terminal/TerminalPanel'
 import { Toast } from './components/Toast'
 import { RepositoryExplorer } from './features/RepositoryExplorer/RepositoryExplorer'
+import { SettingsDialog } from './components/SettingsDialog'
+import { WorktreeDrawer } from './features/Staging/WorktreeDrawer'
 
 function App(): React.JSX.Element {
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const {
     repositories,
     activeRepoId,
@@ -176,6 +180,15 @@ function App(): React.JSX.Element {
           </Tabs.List>
 
           <button
+            onClick={() => setSettingsOpen(true)}
+            className="px-3 h-full flex items-center text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors border-l outline-none focus-visible:bg-muted/50"
+            title="Application settings"
+            aria-label="Application settings"
+          >
+            <Settings className="w-4 h-4" />
+          </button>
+
+          <button
             onClick={() => activeRepoId && useGitStore.getState().toggleExplorer(activeRepoId)}
             className={`px-3 h-full flex items-center text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors border-l outline-none focus-visible:ring-1 focus-visible:ring-ring ${activeRepo?.isExplorerOpen ? 'bg-muted text-foreground' : ''}`}
             title="Toggle repository explorer (Ctrl/Cmd+Shift+E)"
@@ -218,7 +231,7 @@ function App(): React.JSX.Element {
             value={activeRepoId || ''}
             className="flex-1 min-h-0 flex-row outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset data-[state=active]:flex"
           >
-            <RepositoryExplorer repoId={activeRepoId!} />
+            <div className="relative flex h-full min-w-0 flex-1"><RepositoryExplorer repoId={activeRepoId!} /><WorktreeDrawer repoId={activeRepoId!} />
             <div className="flex-1 min-w-0 h-full">
               <PanelGroup autoSaveId="git-vibe-layout-main" direction="vertical">
                 <Panel defaultSize={70} minSize={30}>
@@ -365,12 +378,12 @@ function App(): React.JSX.Element {
                     </div>
                     {/* xterm.js integrated terminal pane */}
                     <div className="flex-1 min-h-0">
-                      <TerminalPanel repoId={activeRepoId!} repoPath={activeRepo.path} />
+                      <TerminalPanel repoId={activeRepoId!} repoPath={activeRepo.activeWorktreePath} />
                     </div>
                   </div>
                 </Panel>
               </PanelGroup>
-            </div>
+            </div></div>
           </Tabs.Content>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-4">
@@ -393,7 +406,7 @@ function App(): React.JSX.Element {
       <div className="h-6 border-t flex items-center justify-between px-4 bg-muted/30 text-[10px] uppercase tracking-widest font-bold text-muted-foreground shrink-0">
         <div className="flex items-center gap-4">
           <span>Ready</span>
-          {activeRepo && <span className="truncate max-w-[300px]">{activeRepo.path}</span>}
+          {activeRepo && <span className="truncate max-w-[300px]">{activeRepo.activeWorktreePath}</span>}
         </div>
         {activeRepo && (
           <div className="flex items-center gap-3">
@@ -405,6 +418,7 @@ function App(): React.JSX.Element {
 
       {/* Centralized application alert notification */}
       <Toast />
+      <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   )
 }

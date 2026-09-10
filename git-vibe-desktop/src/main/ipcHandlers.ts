@@ -1,9 +1,10 @@
-import { ipcMain, dialog, BrowserWindow } from 'electron'
+import { ipcMain, dialog, BrowserWindow, shell } from 'electron'
 import { IPC_EVENTS } from '../shared/types/IpcEvents'
 import { GitExecutor } from './services/GitExecutor'
 import { TerminalService } from './services/TerminalService'
 import { StorageService } from './services/StorageService'
 import { IpcResponse, GitFile, GitDiff } from '../shared/types/GitModels'
+import type { GitWorktree } from '../shared/types/GitModels'
 import type {
   LaunchRequest,
   RepositoryNode,
@@ -12,12 +13,51 @@ import type {
 } from '../shared/types/RepositoryExplorerModels'
 import { RepositoryExplorerService } from './services/RepositoryExplorerService'
 import { ExternalApplicationService } from './services/ExternalApplicationService'
+import type { ApplicationSettings } from '../shared/types/ApplicationSettings'
 
 export function registerIpcHandlers(): void {
   const gitExecutor = GitExecutor.getInstance()
   const terminalService = TerminalService.getInstance()
   const explorerService = new RepositoryExplorerService()
-  const applicationService = new ExternalApplicationService()
+  const applicationService = new ExternalApplicationService(process.platform, process.env, () =>
+    StorageService.getSettings()
+  )
+
+  ipcMain.handle(IPC_EVENTS.SETTINGS.GET, async (): Promise<IpcResponse<ApplicationSettings>> => {
+    try {
+      return { success: true, data: StorageService.getSettings() }
+    } catch (error: unknown) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unable to load settings'
+      }
+    }
+  })
+
+  ipcMain.handle(
+    IPC_EVENTS.SETTINGS.SAVE,
+    async (_, settings: ApplicationSettings): Promise<IpcResponse> => {
+      try {
+        StorageService.saveSettings(settings)
+        return { success: true }
+      } catch (error: unknown) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Unable to save settings'
+        }
+      }
+    }
+  )
+
+  ipcMain.handle(IPC_EVENTS.SETTINGS.SELECT_EXECUTABLE, async (event): Promise<string | null> => {
+    const window = BrowserWindow.fromWebContents(event.sender)
+    if (!window) return null
+    const { canceled, filePaths } = await dialog.showOpenDialog(window, {
+      title: 'Select application executable',
+      properties: ['openFile']
+    })
+    return canceled ? null : filePaths[0]
+  })
 
   ipcMain.handle(
     IPC_EVENTS.FILESYSTEM.READ_DIRECTORY,
@@ -28,6 +68,22 @@ export function registerIpcHandlers(): void {
         return {
           success: false,
           error: error instanceof Error ? error.message : 'Unable to read directory'
+        }
+      }
+    }
+  )
+
+  ipcMain.handle(
+    IPC_EVENTS.FILESYSTEM.OPEN_IN_FILE_MANAGER,
+    async (_, root: string, relativePath: string): Promise<IpcResponse> => {
+      try {
+        const { target } = await explorerService.resolveWithinRoot(root, relativePath)
+        const error = await shell.openPath(target)
+        return error ? { success: false, error } : { success: true }
+      } catch (error: unknown) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Unable to open in file manager'
         }
       }
     }
@@ -103,6 +159,19 @@ export function registerIpcHandlers(): void {
     } catch (error: any) {
       return { success: false, error: error.message }
     }
+  })
+
+  ipcMain.handle(IPC_EVENTS.GIT.WORKTREE_LIST, async (_, repoPath: string): Promise<IpcResponse<GitWorktree[]>> => {
+    try { return { success: true, data: await gitExecutor.getWorktrees(repoPath) } }
+    catch (error: any) { return { success: false, error: error.message } }
+  })
+  ipcMain.handle(IPC_EVENTS.GIT.WORKTREE_ADD, async (event, repoPath: string, path: string, branch: string): Promise<IpcResponse> => {
+    try { await gitExecutor.addWorktree(repoPath, path, branch); event.sender.send(IPC_EVENTS.GIT.REFRESH, repoPath); return { success: true } }
+    catch (error: any) { return { success: false, error: error.message } }
+  })
+  ipcMain.handle(IPC_EVENTS.GIT.WORKTREE_REMOVE, async (event, repoPath: string, path: string): Promise<IpcResponse> => {
+    try { await gitExecutor.removeWorktree(repoPath, path); event.sender.send(IPC_EVENTS.GIT.REFRESH, repoPath); return { success: true } }
+    catch (error: any) { return { success: false, error: error.message } }
   })
 
   // Create branch

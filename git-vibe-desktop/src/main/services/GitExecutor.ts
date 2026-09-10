@@ -1,6 +1,7 @@
 import { execFile } from 'child_process'
 import { promisify } from 'util'
-import { GitFile, GitFileStatus, GitDiff, GitDiffLine } from '../../shared/types/GitModels'
+import { isAbsolute, resolve } from 'path'
+import { GitFile, GitFileStatus, GitDiff, GitDiffLine, GitWorktree } from '../../shared/types/GitModels'
 
 const execFileAsync = promisify(execFile)
 
@@ -283,6 +284,46 @@ export class GitExecutor {
         .split('\n')
         .map((line) => line.trim())
         .filter(Boolean)
+    })
+  }
+
+  public static parseWorktrees(output: string): GitWorktree[] {
+    const records = output.trim() ? output.trim().split(/\n\n+/) : []
+    return records.map((record, index) => {
+      const lines = record.split('\n')
+      const path = lines.find((line) => line.startsWith('worktree '))?.slice(9) || ''
+      const commit = lines.find((line) => line.startsWith('HEAD '))?.slice(5) || ''
+      const branchRef = lines.find((line) => line.startsWith('branch '))?.slice(7) || ''
+      return {
+        path,
+        commit,
+        branch: branchRef ? branchRef.replace(/^refs\/heads\//, '') : null,
+        isMain: index === 0 || lines.includes('bare'),
+        locked: lines.some((line) => line === 'locked' || line.startsWith('locked ')),
+        prunable: lines.some((line) => line === 'prunable' || line.startsWith('prunable '))
+      }
+    }).filter((worktree) => worktree.path)
+  }
+
+  public async getWorktrees(repoPath: string): Promise<GitWorktree[]> {
+    return this.queueCommand(async () => {
+      const { stdout } = await this.execute(repoPath, ['worktree', 'list', '--porcelain'])
+      return GitExecutor.parseWorktrees(stdout)
+    })
+  }
+
+  public async addWorktree(repoPath: string, path: string, branch: string): Promise<void> {
+    await this.queueCommand(async () => {
+      // Relative worktree destinations are created beside the repository,
+      // rather than inside it where Git would report the folder as untracked.
+      const destination = isAbsolute(path) ? path : resolve(repoPath, '..', path)
+      await this.execute(repoPath, ['worktree', 'add', destination, branch])
+    })
+  }
+
+  public async removeWorktree(repoPath: string, path: string): Promise<void> {
+    await this.queueCommand(async () => {
+      await this.execute(repoPath, ['worktree', 'remove', path])
     })
   }
 

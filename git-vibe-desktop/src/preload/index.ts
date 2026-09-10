@@ -2,15 +2,25 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import { IPC_EVENTS } from '../shared/types/IpcEvents'
 import { GitFile, GitDiff, IpcResponse } from '../shared/types/GitModels'
+import type { GitWorktree } from '../shared/types/GitModels'
 import type {
   LaunchRequest,
   RepositoryNode,
   RepositoryNodeKind,
   SupportedApplication
 } from '../shared/types/RepositoryExplorerModels'
+import type { ApplicationSettings } from '../shared/types/ApplicationSettings'
 
 // Custom APIs for renderer
 const api = {
+  settings: {
+    get: (): Promise<IpcResponse<ApplicationSettings>> =>
+      ipcRenderer.invoke(IPC_EVENTS.SETTINGS.GET),
+    save: (settings: ApplicationSettings): Promise<IpcResponse> =>
+      ipcRenderer.invoke(IPC_EVENTS.SETTINGS.SAVE, settings),
+    selectExecutable: (): Promise<string | null> =>
+      ipcRenderer.invoke(IPC_EVENTS.SETTINGS.SELECT_EXECUTABLE)
+  },
   explorer: {
     readDirectory: (
       repositoryRoot: string,
@@ -19,6 +29,15 @@ const api = {
       if (!repositoryRoot?.trim())
         return Promise.resolve({ success: false, error: 'Repository path required' })
       return ipcRenderer.invoke(IPC_EVENTS.FILESYSTEM.READ_DIRECTORY, repositoryRoot, relativePath)
+    },
+    openInFileManager: (repositoryRoot: string, relativePath: string): Promise<IpcResponse> => {
+      if (!repositoryRoot?.trim())
+        return Promise.resolve({ success: false, error: 'Repository path required' })
+      return ipcRenderer.invoke(
+        IPC_EVENTS.FILESYSTEM.OPEN_IN_FILE_MANAGER,
+        repositoryRoot,
+        relativePath
+      )
     },
     getApplications: (
       repositoryRoot: string,
@@ -130,6 +149,21 @@ const api = {
       } catch (error: unknown) {
         return { success: false, error: (error as Error).message }
       }
+    },
+    getWorktrees: async (repoPath: string): Promise<IpcResponse<GitWorktree[]>> => {
+      if (!repoPath?.trim()) return { success: false, error: 'Invalid repository path' }
+      try { return await ipcRenderer.invoke(IPC_EVENTS.GIT.WORKTREE_LIST, repoPath) }
+      catch (error: unknown) { return { success: false, error: (error as Error).message } }
+    },
+    addWorktree: async (repoPath: string, path: string, branch: string): Promise<IpcResponse> => {
+      if (!repoPath?.trim() || !path?.trim() || !branch?.trim()) return { success: false, error: 'Repository, path, and branch are required' }
+      try { return await ipcRenderer.invoke(IPC_EVENTS.GIT.WORKTREE_ADD, repoPath, path, branch) }
+      catch (error: unknown) { return { success: false, error: (error as Error).message } }
+    },
+    removeWorktree: async (repoPath: string, path: string): Promise<IpcResponse> => {
+      if (!repoPath?.trim() || !path?.trim()) return { success: false, error: 'Repository and worktree path are required' }
+      try { return await ipcRenderer.invoke(IPC_EVENTS.GIT.WORKTREE_REMOVE, repoPath, path) }
+      catch (error: unknown) { return { success: false, error: (error as Error).message } }
     },
     createBranch: async (repoPath: string, name: string): Promise<IpcResponse> => {
       if (!repoPath?.trim()) return { success: false, error: 'Invalid repository path' }

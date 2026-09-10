@@ -9,29 +9,34 @@ import type {
   SupportedApplication
 } from '../../shared/types/RepositoryExplorerModels'
 import { RepositoryExplorerService } from './RepositoryExplorerService'
+import type { ApplicationSettings } from '../../shared/types/ApplicationSettings'
 
 type Candidate = SupportedApplication & { command: string; prefix?: string[] }
 
 export class ExternalApplicationService {
   constructor(
     private readonly platform = process.platform,
-    private readonly env = process.env
+    private readonly env = process.env,
+    private readonly getSettings: () => ApplicationSettings = () => ({})
   ) {}
 
   private catalog(): Candidate[] {
+    const settings = this.getSettings()
+    const configured = (id: 'vscode' | 'rider'): string | undefined =>
+      id === 'vscode' ? settings.vscodeExecutablePath : settings.riderExecutablePath
     if (this.platform === 'darwin')
       return [
         {
           id: 'vscode',
           name: 'Visual Studio Code',
-          command: '/usr/bin/open',
-          prefix: ['-b', 'com.microsoft.VSCode']
+          command: configured('vscode') || '/usr/bin/open',
+          prefix: configured('vscode') ? undefined : ['-b', 'com.microsoft.VSCode']
         },
         {
           id: 'rider',
           name: 'JetBrains Rider',
-          command: '/usr/bin/open',
-          prefix: ['-b', 'com.jetbrains.rider']
+          command: configured('rider') || '/usr/bin/open',
+          prefix: configured('rider') ? undefined : ['-b', 'com.jetbrains.rider']
         }
       ]
     if (this.platform === 'win32') {
@@ -59,12 +64,12 @@ export class ExternalApplicationService {
         {
           id: 'vscode',
           name: 'Visual Studio Code',
-          command: vscode
+          command: configured('vscode') || vscode
         },
         {
           id: 'rider',
           name: 'JetBrains Rider',
-          command: this.firstExisting(riderCandidates)
+          command: configured('rider') || this.firstExisting(riderCandidates)
         },
         {
           id: 'visual-studio',
@@ -82,8 +87,16 @@ export class ExternalApplicationService {
       ]
     }
     return [
-      { id: 'vscode', name: 'Visual Studio Code', command: this.findOnPath('code') },
-      { id: 'rider', name: 'JetBrains Rider', command: this.findOnPath('rider') }
+      {
+        id: 'vscode',
+        name: 'Visual Studio Code',
+        command: configured('vscode') || this.findOnPath('code')
+      },
+      {
+        id: 'rider',
+        name: 'JetBrains Rider',
+        command: configured('rider') || this.findOnPath('rider')
+      }
     ]
   }
 
@@ -114,7 +127,7 @@ export class ExternalApplicationService {
     const candidates = this.catalog().filter((app) => this.compatible(kind, relativePath, app))
     const installed = await Promise.all(
       candidates.map(async (app) => {
-        if (this.platform === 'darwin') return app
+        if (this.platform === 'darwin' && app.command === '/usr/bin/open') return app
         try {
           await access(app.command)
           return app

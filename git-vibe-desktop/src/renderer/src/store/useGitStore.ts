@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { GitRepository, GitFile, GitDiffLine } from '../../../shared/types/GitModels'
+import { GitRepository, GitFile, GitDiffLine, GitWorktree } from '../../../shared/types/GitModels'
 import type { RepositoryNode } from '../../../shared/types/RepositoryExplorerModels'
 
 export interface RepositorySlice extends GitRepository {
@@ -23,6 +23,10 @@ export interface RepositorySlice extends GitRepository {
   explorerLoading: Record<string, boolean>
   explorerErrors: Record<string, string>
   openWithTarget: RepositoryNode | null
+  worktrees: GitWorktree[]
+  activeWorktreePath: string
+  isWorktreeOpen: boolean
+  isWorktreeLoading: boolean
 }
 
 export interface GitState {
@@ -62,6 +66,11 @@ export interface GitActions {
   toggleExplorerDirectory: (id: string, relativePath: string) => Promise<void>
   loadExplorerDirectory: (id: string, relativePath: string) => Promise<void>
   setOpenWithTarget: (id: string, target: RepositoryNode | null) => void
+  refreshWorktrees: (id: string) => Promise<void>
+  switchWorktree: (id: string, path: string) => Promise<void>
+  createWorktree: (id: string, path: string, branch: string) => Promise<void>
+  removeWorktree: (id: string, path: string) => Promise<void>
+  toggleWorktree: (id: string) => void
 }
 
 const normalizePath = (p: string): string => {
@@ -114,6 +123,10 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
         explorerLoading: {},
         explorerErrors: {},
         openWithTarget: null
+        ,worktrees: []
+        ,activeWorktreePath: path
+        ,isWorktreeOpen: false
+        ,isWorktreeLoading: false
       }
 
       return {
@@ -131,6 +144,7 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
     get().refreshStatus(path)
     get().refreshBranches(path)
     get().refreshUnpushedCommitCount(path)
+    get().refreshWorktrees(path)
   },
 
   setActiveRepository: (id) => {
@@ -141,6 +155,7 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
       get().refreshStatus(id)
       get().refreshBranches(id)
       get().refreshUnpushedCommitCount(id)
+      get().refreshWorktrees(id)
     }
   },
 
@@ -207,7 +222,7 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
     }))
 
     try {
-      const response = await window.api.git.getCurrentBranch(repo.path)
+      const response = await window.api.git.getCurrentBranch(repo.activeWorktreePath)
       if (response.success) {
         get().updateRepositoryState(pathId, {
           currentBranch: response.data || 'unknown',
@@ -246,7 +261,7 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
     }))
 
     try {
-      const response = await window.api.git.getStatus(repo.path)
+      const response = await window.api.git.getStatus(repo.activeWorktreePath)
       if (response.success) {
         const files = response.data || []
         const availablePaths = new Set(files.map((file) => file.path))
@@ -359,7 +374,7 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
     }
 
     try {
-      const response = await window.api.git.getDiff(repo.path, filePath, options)
+      const response = await window.api.git.getDiff(repo.activeWorktreePath, filePath, options)
       if (response.success && response.data) {
         get().updateRepositoryState(pathId, {
           diffContent: response.data.lines,
@@ -399,7 +414,7 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
     })
 
     try {
-      const response = await window.api.git.add(repo.path, [filePath])
+      const response = await window.api.git.add(repo.activeWorktreePath, [filePath])
       if (!response.success) {
         get().showToast(response.error || 'Failed to stage file', 'error')
         await get().refreshStatus(pathId)
@@ -434,7 +449,7 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
     })
 
     try {
-      const response = await window.api.git.reset(repo.path, [filePath])
+      const response = await window.api.git.reset(repo.activeWorktreePath, [filePath])
       if (!response.success) {
         get().showToast(response.error || 'Failed to unstage file', 'error')
         await get().refreshStatus(pathId)
@@ -458,7 +473,7 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
     if (!repo || uniquePaths.length === 0) return
 
     try {
-      const response = await window.api.git.revertChanges(repo.path, uniquePaths)
+      const response = await window.api.git.revertChanges(repo.activeWorktreePath, uniquePaths)
       if (response.success) {
         get().showToast(
           uniquePaths.length === 1 ? 'Reverted 1 file' : `Reverted ${uniquePaths.length} files`,
@@ -484,7 +499,7 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
     if (!repo) return
 
     try {
-      const response = await window.api.git.getBranches(repo.path)
+      const response = await window.api.git.getBranches(repo.activeWorktreePath)
       if (response.success && response.data) {
         get().updateRepositoryState(pathId, {
           branches: response.data,
@@ -510,7 +525,7 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
       return
 
     try {
-      const response = await window.api.git.getUnpushedCommitCount(repo.path, repo.currentBranch)
+      const response = await window.api.git.getUnpushedCommitCount(repo.activeWorktreePath, repo.currentBranch)
       if (response.success) {
         get().updateRepositoryState(pathId, {
           unpushedCommitCount: response.data || 0,
@@ -530,7 +545,7 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
     if (!repo) return
 
     try {
-      const response = await window.api.git.createBranch(repo.path, branchName)
+      const response = await window.api.git.createBranch(repo.activeWorktreePath, branchName)
       if (response.success) {
         get().showToast(`Branch "${branchName}" created and checked out!`, 'success')
         await get().refreshRepository(pathId)
@@ -548,7 +563,7 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
     if (!repo) return
 
     try {
-      const response = await window.api.git.commit(repo.path, message)
+      const response = await window.api.git.commit(repo.activeWorktreePath, message)
       if (response.success) {
         get().showToast('Changes committed successfully!', 'success')
         get().updateRepositoryState(pathId, { commitMessage: '' }) // Clear draft
@@ -568,7 +583,7 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
     if (!repo) return
 
     try {
-      const response = await window.api.git.push(repo.path, repo.currentBranch)
+      const response = await window.api.git.push(repo.activeWorktreePath, repo.currentBranch)
       if (response.success) {
         get().showToast(`Pushed "${repo.currentBranch}" upstream!`, 'success')
         await get().refreshRepository(pathId)
@@ -587,7 +602,7 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
     if (!repo) return
 
     try {
-      const response = await window.api.git.pull(repo.path)
+      const response = await window.api.git.pull(repo.activeWorktreePath)
       if (response.success) {
         get().showToast(`Pulled changes successfully!`, 'success')
         await get().refreshRepository(pathId)
@@ -598,6 +613,65 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
     } catch (err: any) {
       get().showToast(err.message, 'error')
     }
+  },
+
+  refreshWorktrees: async (id) => {
+    const pathId = normalizePath(id)
+    const repo = get().repositories[pathId]
+    if (!repo) return
+    get().updateRepositoryState(pathId, { isWorktreeLoading: true })
+    try {
+      const response = await window.api.git.getWorktrees(repo.path)
+      if (response.success) {
+        const worktrees = response.data || []
+        const active = worktrees.find((worktree) => normalizePath(worktree.path) === normalizePath(repo.activeWorktreePath))
+        get().updateRepositoryState(pathId, { worktrees, activeWorktreePath: active?.path || repo.activeWorktreePath, isWorktreeLoading: false })
+      } else throw new Error(response.error || 'Failed to load worktrees')
+    } catch (error: any) {
+      get().updateRepositoryState(pathId, { isWorktreeLoading: false })
+      get().showToast(error.message, 'error')
+    }
+  },
+
+  switchWorktree: async (id, path) => {
+    const pathId = normalizePath(id)
+    const repo = get().repositories[pathId]
+    if (!repo || !path) return
+    get().updateRepositoryState(pathId, { activeWorktreePath: path, isWorktreeOpen: false, explorerChildren: {}, expandedDirectories: [] })
+    await get().refreshRepository(pathId)
+    get().showToast(`Switched to worktree "${path.split(/[\\/]/).pop()}"`, 'success')
+  },
+
+  createWorktree: async (id, path, branch) => {
+    const pathId = normalizePath(id)
+    const repo = get().repositories[pathId]
+    if (!repo || !path.trim() || !branch.trim()) return
+    const response = await window.api.git.addWorktree(repo.path, path.trim(), branch.trim())
+    if (response.success) {
+      get().showToast(`Worktree created for "${branch}"`, 'success')
+      await get().refreshWorktrees(pathId)
+    } else get().showToast(response.error || 'Failed to create worktree', 'error')
+  },
+
+  removeWorktree: async (id, path) => {
+    const pathId = normalizePath(id)
+    const repo = get().repositories[pathId]
+    const worktree = repo?.worktrees.find((item) => normalizePath(item.path) === normalizePath(path))
+    if (!repo || !worktree || worktree.isMain) return
+    const response = await window.api.git.removeWorktree(repo.path, path)
+    if (response.success) {
+      if (normalizePath(repo.activeWorktreePath) === normalizePath(path)) {
+        const main = repo.worktrees.find((item) => item.isMain)
+        if (main) await get().switchWorktree(pathId, main.path)
+      }
+      await get().refreshWorktrees(pathId)
+      get().showToast('Worktree removed', 'success')
+    } else get().showToast(response.error || 'Failed to remove worktree', 'error')
+  },
+
+  toggleWorktree: (id) => {
+    const repo = get().repositories[normalizePath(id)]
+    if (repo) get().updateRepositoryState(id, { isWorktreeOpen: !repo.isWorktreeOpen })
   },
 
   showToast: (message, type = 'info') => {
@@ -643,7 +717,7 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
     })
 
     try {
-      const response = await window.api.git.add(repo.path, ['.'])
+      const response = await window.api.git.add(repo.activeWorktreePath, ['.'])
       if (!response.success) {
         get().showToast(response.error || 'Failed to stage files', 'error')
       }
@@ -670,7 +744,7 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
     })
 
     try {
-      const response = await window.api.git.reset(repo.path, ['.'])
+      const response = await window.api.git.reset(repo.activeWorktreePath, ['.'])
       if (!response.success) {
         get().showToast(response.error || 'Failed to unstage files', 'error')
       }
@@ -706,9 +780,9 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
       explorerErrors: { ...repo.explorerErrors, [relativePath]: '' }
     })
     try {
-      const response = await window.api.explorer.readDirectory(repo.path, relativePath)
+      const response = await window.api.explorer.readDirectory(repo.activeWorktreePath, relativePath)
       const current = get().repositories[pathId]
-      if (!current || current.path !== repo.path) return
+      if (!current || current.activeWorktreePath !== repo.activeWorktreePath) return
       if (response.success) {
         get().updateRepositoryState(pathId, {
           explorerChildren: { ...current.explorerChildren, [relativePath]: response.data || [] },
@@ -724,7 +798,7 @@ export const useGitStore = create<GitState & GitActions>((set, get) => ({
       }
     } catch (error: unknown) {
       const current = get().repositories[pathId]
-      if (!current || current.path !== repo.path) return
+      if (!current || current.activeWorktreePath !== repo.activeWorktreePath) return
       const message = error instanceof Error ? error.message : 'Unable to load directory'
       get().updateRepositoryState(pathId, {
         explorerErrors: { ...current.explorerErrors, [relativePath]: message },

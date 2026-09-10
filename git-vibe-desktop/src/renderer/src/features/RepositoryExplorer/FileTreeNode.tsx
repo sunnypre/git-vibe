@@ -1,4 +1,4 @@
-import { ChevronRight, File, Folder, FolderOpen, ExternalLink } from 'lucide-react'
+import { ChevronRight, Code2, File, Folder, FolderOpen, ExternalLink } from 'lucide-react'
 import type { RepositoryNode } from '../../../../shared/types/RepositoryExplorerModels'
 import { useGitStore } from '../../store/useGitStore'
 
@@ -18,18 +18,58 @@ export function FileTreeNode({
   const expanded = repo.expandedDirectories.includes(node.relativePath)
   const children = repo.explorerChildren[node.relativePath]
   const isSolution = node.kind === 'file' && /\.slnx?$/i.test(node.name)
-  const canOpen = node.kind === 'directory' || isSolution
+  const runDirectoryAction = async (
+    event: React.MouseEvent,
+    action: () => Promise<{ success: boolean; error?: string }>,
+    successMessage: string,
+    fallbackError: string
+  ): Promise<void> => {
+    event.stopPropagation()
+    try {
+      const response = await action()
+      showToast(
+        response.success ? successMessage : response.error || fallbackError,
+        response.success ? 'success' : 'error'
+      )
+    } catch (error: unknown) {
+      showToast(error instanceof Error ? error.message : fallbackError, 'error')
+    }
+  }
 
-  const openWithRider = async (event: React.MouseEvent) => {
+  const openDirectoryWithVSCode = (event: React.MouseEvent): Promise<void> =>
+    runDirectoryAction(
+      event,
+      () =>
+        window.api.explorer.openPath({
+          repositoryRoot: repo.activeWorktreePath,
+          relativePath: node.relativePath,
+          kind: 'directory',
+          applicationId: 'vscode'
+        }),
+      `Opened ${node.name} with VS Code`,
+      'Unable to open with VS Code'
+    )
+
+  const openDirectoryInFileManager = (event: React.MouseEvent): Promise<void> =>
+    runDirectoryAction(
+      event,
+      () => window.api.explorer.openInFileManager(repo.activeWorktreePath, node.relativePath),
+      `Opened ${node.name} in file manager`,
+      'Unable to open in file manager'
+    )
+
+  const openWithRider = async (event: React.MouseEvent): Promise<void> => {
     event.stopPropagation()
     const response = await window.api.explorer.openPath({
-      repositoryRoot: repo.path,
+      repositoryRoot: repo.activeWorktreePath,
       relativePath: node.relativePath,
       kind: node.kind,
       applicationId: 'rider'
     })
     showToast(
-      response.success ? `Opened ${node.name} with Rider` : response.error || 'Unable to open with Rider',
+      response.success
+        ? `Opened ${node.name} with Rider`
+        : response.error || 'Unable to open with Rider',
       response.success ? 'success' : 'error'
     )
   }
@@ -70,7 +110,27 @@ export function FileTreeNode({
           )}
           <span className="truncate">{node.name}</span>
         </button>
-        {canOpen && (
+        {node.kind === 'directory' && (
+          <>
+            <button
+              className="p-1 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 rounded outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              aria-label={`Open ${node.name} with VS Code`}
+              title="Open with VS Code"
+              onClick={openDirectoryWithVSCode}
+            >
+              <Code2 className="w-3 h-3" aria-hidden="true" />
+            </button>
+            <button
+              className="p-1 mr-1 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 rounded outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              aria-label={`Open ${node.name} in file manager`}
+              title="Open in file manager"
+              onClick={openDirectoryInFileManager}
+            >
+              <FolderOpen className="w-3 h-3" aria-hidden="true" />
+            </button>
+          </>
+        )}
+        {isSolution && (
           <button
             className="p-1 mr-1 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 rounded focus-visible:ring-1 focus-visible:ring-ring"
             aria-label={`Open ${node.name} with application`}
