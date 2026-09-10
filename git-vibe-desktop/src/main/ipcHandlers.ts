@@ -1,4 +1,4 @@
-import { ipcMain, dialog, BrowserWindow } from 'electron'
+import { ipcMain, dialog, BrowserWindow, shell } from 'electron'
 import { IPC_EVENTS } from '../shared/types/IpcEvents'
 import { GitExecutor } from './services/GitExecutor'
 import { TerminalService } from './services/TerminalService'
@@ -28,6 +28,22 @@ export function registerIpcHandlers(): void {
         return {
           success: false,
           error: error instanceof Error ? error.message : 'Unable to read directory'
+        }
+      }
+    }
+  )
+
+  ipcMain.handle(
+    IPC_EVENTS.FILESYSTEM.OPEN_IN_FILE_MANAGER,
+    async (_, root: string, relativePath: string): Promise<IpcResponse> => {
+      try {
+        const { target } = await explorerService.resolveWithinRoot(root, relativePath)
+        const error = await shell.openPath(target)
+        return error ? { success: false, error } : { success: true }
+      } catch (error: unknown) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Unable to open in file manager'
         }
       }
     }

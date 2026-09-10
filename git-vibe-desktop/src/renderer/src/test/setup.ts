@@ -35,6 +35,12 @@ Object.defineProperty(window, 'electron', {
 
 Object.defineProperty(window, 'api', {
   value: {
+    explorer: {
+      readDirectory: vi.fn().mockResolvedValue({ success: true, data: [] }),
+      getApplications: vi.fn().mockResolvedValue({ success: true, data: [] }),
+      openPath: vi.fn().mockResolvedValue({ success: true }),
+      openInFileManager: vi.fn().mockResolvedValue({ success: true })
+    },
     git: {
       getCurrentBranch: vi.fn().mockResolvedValue({ success: true, data: 'main' }),
       getStatus: vi.fn().mockResolvedValue({ success: true, data: [] }),

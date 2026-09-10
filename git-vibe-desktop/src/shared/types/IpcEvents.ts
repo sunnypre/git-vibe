@@ -18,6 +18,9 @@ export const IPC_EVENTS = {
     MAXIMIZE: 'window:maximize',
     CLOSE: 'window:close'
   },
-  FILESYSTEM: { READ_DIRECTORY: 'filesystem:readDirectory' },
+  FILESYSTEM: {
+    READ_DIRECTORY: 'filesystem:readDirectory',
+    OPEN_IN_FILE_MANAGER: 'filesystem:openInFileManager'
+  },
   LAUNCHER: { GET_APPLICATIONS: 'launcher:getApplications', OPEN_PATH: 'launcher:openPath' }
 } as const

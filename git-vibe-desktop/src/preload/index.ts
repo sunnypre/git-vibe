@@ -20,6 +20,15 @@ const api = {
         return Promise.resolve({ success: false, error: 'Repository path required' })
       return ipcRenderer.invoke(IPC_EVENTS.FILESYSTEM.READ_DIRECTORY, repositoryRoot, relativePath)
     },
+    openInFileManager: (repositoryRoot: string, relativePath: string): Promise<IpcResponse> => {
+      if (!repositoryRoot?.trim())
+        return Promise.resolve({ success: false, error: 'Repository path required' })
+      return ipcRenderer.invoke(
+        IPC_EVENTS.FILESYSTEM.OPEN_IN_FILE_MANAGER,
+        repositoryRoot,
+        relativePath
+      )
+    },
     getApplications: (
       repositoryRoot: string,
       relativePath: string,

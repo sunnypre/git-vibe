@@ -16,6 +16,7 @@ declare global {
           repositoryRoot: string,
           relativePath?: string
         ) => Promise<IpcResponse<RepositoryNode[]>>
+        openInFileManager: (repositoryRoot: string, relativePath: string) => Promise<IpcResponse>
         getApplications: (
           repositoryRoot: string,
           relativePath: string,
